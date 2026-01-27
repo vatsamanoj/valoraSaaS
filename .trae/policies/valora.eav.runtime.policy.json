@@ -1,0 +1,156 @@
+{
+  "module": {
+    "name": "EAV-Runtime",
+    "type": "Infrastructure",
+    "priority": 6,
+    "description": "Metadata-driven dynamic UI and schema using EAV pattern"
+  },
+
+  "corePrinciples": {
+    "uiSchemaIsMetadata": true,
+    "sqlSchemaIsFixed": true,
+    "noDynamicDDL": true,
+    "tenantScopedMetadata": true
+  },
+
+  "supportedUseCases": {
+    "allowed": [
+      "Dynamic forms",
+      "Tenant-specific fields",
+      "Optional master attributes",
+      "UI layout customization"
+    ],
+    "forbidden": [
+      "Financial amounts",
+      "Ledger data",
+      "Payroll values",
+      "Stock valuation"
+    ]
+  },
+
+  "eavModel": {
+    "tables": {
+      "entity": "ObjectRecord",
+      "attribute": "ObjectField",
+      "value": "ObjectRecordAttribute"
+    },
+    "rules": [
+      "Each attribute is defined in ObjectField",
+      "Each value stored as a row, not column",
+      "Field behavior resolved at runtime"
+    ]
+  },
+
+  "metadataScope": {
+    "tenant": "TenantId",
+    "module": "ModuleCode",
+    "object": "ObjectCode",
+    "versioning": true
+  },
+
+  "fieldDefinitionRules": {
+    "dataTypes": [
+      "string",
+      "number",
+      "date",
+      "boolean",
+      "lookup"
+    ],
+    "rules": [
+      "FieldName must be unique per object",
+      "Field versioning required",
+      "Deleting fields is forbidden; only deactivate"
+    ]
+  },
+
+  "validationRules": {
+    "source": "ObjectField",
+    "rules": [
+      "Required fields enforced at runtime",
+      "Type validation enforced in application layer",
+      "Cross-field rules handled in service layer"
+    ]
+  },
+
+  "uiRendering": {
+    "input": [
+      "ObjectDefinition",
+      "ObjectField"
+    ],
+    "rules": [
+      "UI generated dynamically from metadata",
+      "No hardcoded fields in UI",
+      "Layout metadata separated from data schema"
+    ]
+  },
+
+  "storageRules": {
+    "sql": {
+      "useFor": [
+        "EAV write model",
+        "Transactional integrity"
+      ]
+    },
+    "mongo": {
+      "useFor": [
+        "Flattened read models",
+        "Search optimized views"
+      ],
+      "rules": [
+        "Mongo updated via events only",
+        "No direct UI writes"
+      ]
+    }
+  },
+
+  "performanceRules": {
+    "indexes": [
+      "TenantId",
+      "ObjectCode",
+      "RecordId",
+      "FieldId"
+    ],
+    "rules": [
+      "Frequently queried attributes promoted to fixed columns",
+      "No EAV joins in reporting queries"
+    ]
+  },
+
+  "security": {
+    "rules": [
+      "TenantId enforced in all metadata queries",
+      "Field-level permission supported",
+      "Sensitive attributes masked by role"
+    ]
+  },
+
+  "changeManagement": {
+    "rules": [
+      "Schema change updates metadata only",
+      "Existing records remain valid",
+      "Version-aware reads supported"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Resolve schema from metadata",
+      "Validate data before persistence",
+      "Respect forbidden data list",
+      "Keep EAV isolated from FI/MM/HCM core"
+    ],
+    "mustNever": [
+      "Store money in EAV",
+      "Alter SQL schema dynamically",
+      "Hardcode dynamic fields",
+      "Bypass metadata validation"
+    ]
+  },
+
+  "keyLaws": [
+    "UI schema is not database schema",
+    "Dynamic does not mean ungoverned",
+    "EAV is for flexibility, not finance",
+    "Metadata controls behavior, not tables"
+  ]
+}

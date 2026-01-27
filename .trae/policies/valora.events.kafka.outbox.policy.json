@@ -1,0 +1,178 @@
+{
+  "module": {
+    "name": "Eventing-Outbox-Kafka",
+    "type": "Infrastructure",
+    "priority": 8,
+    "description": "Transactional Outbox pattern with Kafka-based event propagation"
+  },
+
+  "corePrinciples": {
+    "sqlIsSourceOfTruth": true,
+    "eventsAreFacts": true,
+    "outboxIsMandatory": true,
+    "noDirectKafkaWritesFromBusinessLogic": true
+  },
+
+  "outboxPattern": {
+    "table": "OutboxEvent",
+    "ownership": "Same transaction as business data",
+    "rules": [
+      "Outbox row written in SAME DB transaction",
+      "No Kafka publish inside domain logic",
+      "Outbox guarantees atomicity",
+      "Event emission is async and reliable"
+    ]
+  },
+
+  "outboxTableSchema": {
+    "requiredFields": [
+      "OutboxId",
+      "TenantId",
+      "AggregateType",
+      "AggregateId",
+      "EventType",
+      "Payload",
+      "Status",
+      "CreatedAt",
+      "ProcessedAt"
+    ],
+    "rules": [
+      "Payload is immutable",
+      "TenantId mandatory",
+      "Status transitions only forward"
+    ]
+  },
+
+  "outboxLifecycle": {
+    "states": [
+      "Pending",
+      "Published",
+      "Failed"
+    ],
+    "rules": [
+      "Pending events are retried",
+      "Published events are never reprocessed",
+      "Failed events go to dead-letter handling"
+    ]
+  },
+
+  "eventEmission": {
+    "producer": "OutboxProcessor",
+    "rules": [
+      "Processor reads only Pending events",
+      "Publishing is idempotent",
+      "Offset stored after successful publish"
+    ]
+  },
+
+  "eventStructure": {
+    "requiredFields": [
+      "EventId",
+      "EventType",
+      "TenantId",
+      "Module",
+      "AggregateType",
+      "AggregateId",
+      "OccurredAt",
+      "Version"
+    ],
+    "rules": [
+      "Event schema versioned",
+      "Backward compatibility enforced"
+    ]
+  },
+
+  "topicStrategy": {
+    "pattern": "tenant.module.event",
+    "examples": [
+      "lab003.fi.posted",
+      "lab003.sd.invoiced",
+      "lab003.mm.grn",
+      "lab003.hcm.payroll.posted",
+      "lab003.eav.schema.changed"
+    ],
+    "rules": [
+      "TenantId must be in topic",
+      "No cross-tenant topics",
+      "Module-specific topics only"
+    ]
+  },
+
+  "consumers": {
+    "allowed": [
+      "MongoReadModelBuilder",
+      "SearchIndexer",
+      "NotificationEngine",
+      "AnalyticsPipeline"
+    ],
+    "rules": [
+      "Consumers are idempotent",
+      "Consumers never update SQL source tables",
+      "Consumers can rebuild state via replay"
+    ]
+  },
+
+  "mongoIntegration": {
+    "purpose": "Read-optimized denormalized views",
+    "rules": [
+      "Mongo updated ONLY from Kafka",
+      "One document per aggregate",
+      "No transactional dependency on Mongo"
+    ]
+  },
+
+  "failureHandling": {
+    "rules": [
+      "Retry with exponential backoff",
+      "Dead-letter queue mandatory",
+      "Failed events visible in admin UI"
+    ]
+  },
+
+  "orderingAndConsistency": {
+    "rules": [
+      "Ordering guaranteed per AggregateId",
+      "Exactly-once delivery preferred",
+      "Duplicate events safely ignored"
+    ]
+  },
+
+  "security": {
+    "rules": [
+      "TenantId validated before publish",
+      "No PII unless encrypted",
+      "Outbox access restricted to service role"
+    ]
+  },
+
+  "compliance": {
+    "auditLog": "Mandatory",
+    "rules": [
+      "Outbox insert audited",
+      "Event publish audited",
+      "Replay actions logged"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Write OutboxEvent in same DB transaction",
+      "Never publish to Kafka from domain handler",
+      "Include TenantId in every event",
+      "Make OutboxProcessor idempotent"
+    ],
+    "mustNever": [
+      "Emit Kafka event before DB commit",
+      "Skip outbox for convenience",
+      "Update business tables from consumers",
+      "Share tenant data across events"
+    ]
+  },
+
+  "keyLaws": [
+    "If it is not in the Outbox, it did not happen",
+    "Events are consequences, not commands",
+    "Publishing is async, consistency is eventual",
+    "Outbox protects truth from failure"
+  ]
+}

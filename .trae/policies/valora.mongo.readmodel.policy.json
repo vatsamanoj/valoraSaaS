@@ -1,0 +1,158 @@
+{
+  "module": {
+    "name": "Mongo-ReadModel",
+    "type": "Infrastructure",
+    "priority": 9,
+    "description": "Denormalized read models built from Kafka events"
+  },
+
+  "corePrinciples": {
+    "mongoIsNotSourceOfTruth": true,
+    "sqlOwnsTruth": true,
+    "eventDrivenOnly": true,
+    "rebuildableAtAnyTime": true
+  },
+
+  "dataIngestion": {
+    "source": "Kafka",
+    "pattern": "Outbox -> Kafka -> Consumer -> Mongo",
+    "rules": [
+      "No direct writes from API or UI",
+      "Only Kafka consumers may write to Mongo",
+      "Each write linked to EventId"
+    ]
+  },
+
+  "documentStrategy": {
+    "granularity": "One document per aggregate",
+    "rules": [
+      "AggregateId = Mongo document _id",
+      "TenantId mandatory in every document",
+      "Module and ObjectCode included"
+    ]
+  },
+
+  "denormalizationRules": {
+    "allowed": [
+      "Embed master data snapshots",
+      "Flatten child collections",
+      "Pre-calculate totals and summaries"
+    ],
+    "forbidden": [
+      "Derived financial truth",
+      "Independent business rules",
+      "Cross-tenant joins"
+    ]
+  },
+
+  "schemaDesign": {
+    "pattern": "Module.Aggregate.View",
+    "examples": [
+      "FI.LedgerSummary.View",
+      "SD.Invoice.View",
+      "MM.StockBalance.View",
+      "HCM.Employee360.View"
+    ],
+    "rules": [
+      "Schema version stored per document",
+      "Backward compatibility supported",
+      "Breaking changes require new view"
+    ]
+  },
+
+  "updateStrategy": {
+    "mode": "UpsertByAggregateId",
+    "rules": [
+      "Idempotent updates",
+      "Same event can be applied multiple times",
+      "LastProcessedEventId stored"
+    ]
+  },
+
+  "deletionHandling": {
+    "pattern": "SoftDelete",
+    "rules": [
+      "Delete events mark document inactive",
+      "Hard delete allowed only during rebuild"
+    ]
+  },
+
+  "queryUsage": {
+    "allowed": [
+      "Dashboards",
+      "Search",
+      "Reporting views",
+      "Read-heavy screens"
+    ],
+    "forbidden": [
+      "Transactional writes",
+      "Financial posting",
+      "Authoritative validation"
+    ]
+  },
+
+  "indexingPolicy": {
+    "required": [
+      "TenantId",
+      "AggregateId",
+      "Module",
+      "ObjectCode"
+    ],
+    "optional": [
+      "Searchable fields",
+      "Status",
+      "Date ranges"
+    ]
+  },
+
+  "rebuildStrategy": {
+    "trigger": [
+      "Schema change",
+      "Bug fix",
+      "Audit request"
+    ],
+    "rules": [
+      "Rebuild from Kafka replay",
+      "Old collections archived",
+      "Rebuild is non-blocking"
+    ]
+  },
+
+  "security": {
+    "rules": [
+      "TenantId enforced in every query",
+      "PII masked based on role",
+      "No cross-tenant aggregation"
+    ]
+  },
+
+  "compliance": {
+    "auditLog": "Mandatory",
+    "rules": [
+      "Mongo updates logged with EventId",
+      "Rebuild actions auditable"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Treat Mongo as projection only",
+      "Make consumers idempotent",
+      "Store schema version",
+      "Support rebuild logic"
+    ],
+    "mustNever": [
+      "Write to Mongo from API",
+      "Treat Mongo as authoritative",
+      "Store raw financial truth",
+      "Skip TenantId"
+    ]
+  },
+
+  "keyLaws": [
+    "Mongo is a mirror, not a master",
+    "If Mongo is wrong, rebuild it",
+    "Events create views, not rules",
+    "Fast reads never justify wrong writes"
+  ]
+}

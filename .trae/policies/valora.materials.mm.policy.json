@@ -1,0 +1,172 @@
+{
+  "module": {
+    "name": "Materials-MM",
+    "type": "Transactional",
+    "priority": 4,
+    "description": "SAP-style Materials Management with stock and FI integration"
+  },
+
+  "corePrinciples": {
+    "stockIsQuantitative": true,
+    "valueComesFromFI": true,
+    "noDirectLedgerWrites": true,
+    "documentDriven": true
+  },
+
+  "organizationalScope": {
+    "tenant": "TenantId",
+    "legalEntity": "LegalEntityId",
+    "site": "SiteId",
+    "storageLocation": "StorageLocationId"
+  },
+
+  "masterData": {
+    "required": [
+      "Material",
+      "MaterialGroup",
+      "Vendor",
+      "StorageLocation"
+    ],
+    "rules": [
+      "Material masters are tenant scoped",
+      "Valuation class determines FI account",
+      "Stock is always site + location specific"
+    ]
+  },
+
+  "documentFlow": {
+    "sequence": [
+      "PurchaseOrder",
+      "GoodsReceipt",
+      "StockTransfer",
+      "GoodsIssue"
+    ],
+    "rules": [
+      "Documents are immutable once posted",
+      "Each movement creates a new document",
+      "Cancellations create reversal documents"
+    ]
+  },
+
+  "purchaseOrder": {
+    "statusFlow": [
+      "Draft",
+      "Approved",
+      "Closed"
+    ],
+    "rules": [
+      "No FI impact",
+      "Price locked on approval"
+    ]
+  },
+
+  "goodsReceipt": {
+    "rules": [
+      "Increases stock quantity",
+      "Creates FI document",
+      "Posts to inventory and GR/IR accounts"
+    ]
+  },
+
+  "goodsIssue": {
+    "rules": [
+      "Decreases stock quantity",
+      "Creates FI document",
+      "Posts consumption or COGS"
+    ]
+  },
+
+  "stockTransfer": {
+    "rules": [
+      "Quantity moves between locations",
+      "FI impact only if valuation changes",
+      "Audit trail mandatory"
+    ]
+  },
+
+  "stockValuation": {
+    "methods": [
+      "MovingAverage",
+      "StandardPrice"
+    ],
+    "rules": [
+      "Valuation method fixed per material",
+      "No valuation change mid-period"
+    ]
+  },
+
+  "integrationRules": {
+    "FI": "Stock movements create ledger entries",
+    "SD": "Delivery triggers goods issue",
+    "CO": "Consumption contributes to cost"
+  },
+
+  "storageStrategy": {
+    "sql": {
+      "useFor": [
+        "Stock balances",
+        "Material movements",
+        "Purchase documents"
+      ],
+      "rules": [
+        "Quantity and value stored in fixed schema",
+        "No EAV for stock or valuation"
+      ]
+    },
+    "eav": {
+      "useFor": [
+        "Optional material attributes",
+        "Non-critical classification"
+      ]
+    },
+    "mongo": {
+      "useFor": [
+        "Inventory dashboards",
+        "Stock availability views"
+      ]
+    }
+  },
+
+  "compliance": {
+    "auditLog": "Mandatory",
+    "rules": [
+      "Every stock movement auditable",
+      "Physical vs system stock traceable",
+      "No hard delete"
+    ]
+  },
+
+  "security": {
+    "authorization": [
+      "CreatePO",
+      "PostGRN",
+      "PostIssue",
+      "TransferStock"
+    ],
+    "rules": [
+      "Posting requires explicit permission",
+      "Back-dated posting controlled"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Update stock quantities correctly",
+      "Trigger FI posting on movements",
+      "Maintain movement history",
+      "Respect valuation rules"
+    ],
+    "mustNever": [
+      "Update stock directly",
+      "Delete movement records",
+      "Bypass FI integration"
+    ]
+  },
+
+  "keyLaws": [
+    "Stock is quantity first, value second",
+    "No stock movement without a document",
+    "Inventory value is owned by FI",
+    "Reversals fix mistakes, not edits"
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "module": {
+    "name": "Sales-SD",
+    "type": "Transactional",
+    "priority": 3,
+    "description": "SAP-style Sales & Billing with document flow to FI"
+  },
+
+  "corePrinciples": {
+    "documentDriven": true,
+    "noDirectLedgerWrites": true,
+    "billingCreatesFIImpact": true,
+    "immutableAfterBilling": true
+  },
+
+  "organizationalScope": {
+    "tenant": "TenantId",
+    "legalEntity": "LegalEntityId",
+    "siteOptional": true,
+    "currency": "Tenant.BaseCurrency"
+  },
+
+  "masterData": {
+    "required": [
+      "Customer",
+      "PriceList",
+      "TaxCode",
+      "PaymentTerm"
+    ],
+    "rules": [
+      "Masters are tenant scoped",
+      "Pricing and tax resolved at billing time"
+    ]
+  },
+
+  "documentFlow": {
+    "sequence": [
+      "SalesOrder",
+      "Delivery (optional)",
+      "Invoice",
+      "FI Document"
+    ],
+    "rules": [
+      "Documents are linked, never overwritten",
+      "Each step creates a new document",
+      "Cancellation creates reversal document"
+    ]
+  },
+
+  "salesOrder": {
+    "statusFlow": [
+      "Draft",
+      "Confirmed",
+      "Closed"
+    ],
+    "rules": [
+      "Draft is editable",
+      "Confirmed locks pricing",
+      "Order has no FI impact"
+    ]
+  },
+
+  "delivery": {
+    "optional": true,
+    "rules": [
+      "Required only for stock-controlled items",
+      "Triggers MM stock movement"
+    ]
+  },
+
+  "billing": {
+    "document": "Invoice",
+    "rules": [
+      "Billing creates FI posting",
+      "Billing locks amounts and taxes",
+      "No edit after billing"
+    ]
+  },
+
+  "pricingEngine": {
+    "inputs": [
+      "PriceList",
+      "DiscountRules",
+      "TaxRules"
+    ],
+    "rules": [
+      "Pricing resolved before billing",
+      "No price recalculation after billing"
+    ]
+  },
+
+  "taxHandling": {
+    "model": "Structured",
+    "rules": [
+      "Tax lines stored separately",
+      "Tax derived from TaxCode",
+      "Tax amounts posted to FI"
+    ]
+  },
+
+  "integrationRules": {
+    "FI": "Invoice posts revenue and tax",
+    "MM": "Delivery reduces stock",
+    "CO": "Revenue and cost available for profitability"
+  },
+
+  "storageStrategy": {
+    "sql": {
+      "useFor": [
+        "Sales documents",
+        "Billing documents",
+        "Tax lines"
+      ],
+      "rules": [
+        "No EAV for amounts",
+        "Amounts stored in fixed schema"
+      ]
+    },
+    "eav": {
+      "useFor": [
+        "Optional sales attributes",
+        "UI-specific fields"
+      ]
+    },
+    "mongo": {
+      "useFor": [
+        "Sales dashboards",
+        "Customer 360 view"
+      ]
+    }
+  },
+
+  "compliance": {
+    "auditLog": "Mandatory",
+    "rules": [
+      "Invoice immutability",
+      "Document number control",
+      "Tax compliance enforced"
+    ]
+  },
+
+  "security": {
+    "authorization": [
+      "CreateOrder",
+      "BillInvoice",
+      "CancelInvoice"
+    ],
+    "rules": [
+      "Billing requires explicit permission",
+      "Cancellation logged and auditable"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Follow document flow strictly",
+      "Post invoice to FI",
+      "Write audit log",
+      "Emit billing event"
+    ],
+    "mustNever": [
+      "Write ledger entries directly",
+      "Edit billed invoices",
+      "Store money dynamically"
+    ]
+  },
+
+  "keyLaws": [
+    "Sales orders do not affect finance",
+    "Billing is the point of financial truth",
+    "Revenue is recognized via FI",
+    "Documents move forward, never backward"
+  ]
+}

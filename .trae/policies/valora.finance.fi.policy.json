@@ -1,0 +1,128 @@
+{
+  "module": {
+    "name": "Finance-FI",
+    "type": "Core",
+    "priority": 1,
+    "description": "SAP-style Financial Accounting with double-entry ledger"
+  },
+
+  "coreRules": {
+    "fixedSchemaOnly": true,
+    "noEAV": true,
+    "noJSONForAmounts": true,
+    "appendOnly": true,
+    "immutableAfterPosting": true
+  },
+
+  "organizationalScope": {
+    "tenant": "TenantId",
+    "legalEntity": "LegalEntityId",
+    "siteOptional": true,
+    "currency": "Tenant.BaseCurrency"
+  },
+
+  "masterData": {
+    "required": [
+      "ChartOfAccounts",
+      "GLAccount",
+      "TaxCode",
+      "CostCenter"
+    ],
+    "rules": [
+      "Masters are tenant scoped",
+      "Masters are rarely changed",
+      "Masters cached for read"
+    ]
+  },
+
+  "transactionModel": {
+    "documentPattern": "Header + Lines",
+    "postingStates": [
+      "Draft",
+      "Posted",
+      "Reversed"
+    ],
+    "rules": [
+      "Draft can be edited",
+      "Posted cannot be edited",
+      "Reversal creates new document"
+    ]
+  },
+
+  "ledgerModel": {
+    "type": "DoubleEntry",
+    "table": "LedgerEntry",
+    "rules": [
+      "Sum(Debit) = Sum(Credit) per document",
+      "Each document creates multiple ledger rows",
+      "Ledger rows are never updated or deleted"
+    ]
+  },
+
+  "currencyRules": {
+    "storage": "BaseCurrencyOnly",
+    "exchangeRate": "CapturedAtPostingTime",
+    "reporting": "ConvertedOnRead"
+  },
+
+  "postingEngine": {
+    "input": "BusinessDocument",
+    "output": "LedgerEntries",
+    "rules": [
+      "Posting logic is deterministic",
+      "Posting logic is code-driven",
+      "Configuration influences posting accounts"
+    ]
+  },
+
+  "integrationRules": {
+    "SD": "Billing posts to FI",
+    "MM": "Stock movement posts to FI",
+    "HCM": "Payroll posts to FI",
+    "CO": "Reads FI only"
+  },
+
+  "compliance": {
+    "auditLog": "Mandatory",
+    "standards": [
+      "ISO27001",
+      "SOC2",
+      "GST/VAT"
+    ],
+    "rules": [
+      "No hard delete",
+      "Every change auditable",
+      "Posting period control enforced"
+    ]
+  },
+
+  "security": {
+    "access": "CQRS only",
+    "authorization": "Role + Permission",
+    "rules": [
+      "No direct table access",
+      "Posting requires explicit permission"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Validate posting balance",
+      "Lock record after posting",
+      "Write audit log",
+      "Emit financial event"
+    ],
+    "mustNever": [
+      "Update ledger rows",
+      "Store amount dynamically",
+      "Bypass posting workflow"
+    ]
+  },
+
+  "keyLaws": [
+    "Flexibility ends where money begins",
+    "Every financial action is a document",
+    "Documents create ledger impact",
+    "Corrections are new documents"
+  ]
+}

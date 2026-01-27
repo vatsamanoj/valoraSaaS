@@ -1,0 +1,146 @@
+{
+  "module": {
+    "name": "Data-Governance-Retention",
+    "type": "Governance",
+    "priority": 14,
+    "description": "Data lifecycle management, retention, archival, and legal compliance"
+  },
+
+  "corePrinciples": {
+    "dataHasLifecycle": true,
+    "retentionIsPolicyDriven": true,
+    "rightToErasureSupported": true,
+    "legalHoldOverridesRetention": true
+  },
+
+  "dataClassification": {
+    "categories": [
+      "Financial",
+      "PersonalPII",
+      "Operational",
+      "Configuration",
+      "Audit"
+    ],
+    "rules": [
+      "Every table and document classified",
+      "Classification drives retention and access",
+      "PII classification mandatory"
+    ]
+  },
+
+  "retentionPolicies": {
+    "financial": {
+      "minYears": 7,
+      "deletion": "Forbidden",
+      "archival": "ColdStorage"
+    },
+    "personalPII": {
+      "minYears": 0,
+      "deletion": "OnRequest",
+      "archival": "Anonymized"
+    },
+    "operational": {
+      "minYears": 2,
+      "deletion": "AllowedAfterRetention"
+    },
+    "audit": {
+      "minYears": 10,
+      "deletion": "Forbidden"
+    }
+  },
+
+  "gdprCompliance": {
+    "rights": [
+      "Access",
+      "Rectification",
+      "Erasure",
+      "Portability"
+    ],
+    "rules": [
+      "Requests logged and tracked",
+      "Identity verification mandatory",
+      "Financial records exempt from erasure"
+    ]
+  },
+
+  "anonymization": {
+    "rules": [
+      "PII anonymized instead of deleted when linked to finance",
+      "Anonymization irreversible",
+      "Mapping tables destroyed after process"
+    ]
+  },
+
+  "archivalStrategy": {
+    "targets": [
+      "ColdSQL",
+      "ObjectStorage"
+    ],
+    "rules": [
+      "Archived data is read-only",
+      "Archived data indexed minimally",
+      "Restore process documented"
+    ]
+  },
+
+  "legalHold": {
+    "rules": [
+      "Legal hold suspends deletion",
+      "Hold scope tenant-aware",
+      "Hold release auditable"
+    ]
+  },
+
+  "crossStoreConsistency": {
+    "rules": [
+      "Retention applied consistently across SQL, Mongo, and backups",
+      "Outbox and Kafka events retained per policy"
+    ]
+  },
+
+  "automation": {
+    "rules": [
+      "Retention jobs scheduled",
+      "Dry-run mode supported",
+      "Deletion and archival actions logged"
+    ]
+  },
+
+  "security": {
+    "rules": [
+      "Retention jobs use service role",
+      "Deletion requires dual approval for sensitive data"
+    ]
+  },
+
+  "auditAndCompliance": {
+    "auditLog": "Mandatory",
+    "rules": [
+      "Retention actions logged",
+      "GDPR requests traceable",
+      "Archival and purge auditable"
+    ]
+  },
+
+  "aiExecutionRules": {
+    "mustAlways": [
+      "Respect retention policy before delete",
+      "Anonymize PII when required",
+      "Log all lifecycle actions",
+      "Check legal hold status"
+    ],
+    "mustNever": [
+      "Delete financial records",
+      "Bypass retention checks",
+      "Purge data silently",
+      "Ignore cross-store consistency"
+    ]
+  },
+
+  "keyLaws": [
+    "Data outlives applications",
+    "Compliance beats convenience",
+    "Not all data can be deleted",
+    "Retention is a legal contract"
+  ]
+}

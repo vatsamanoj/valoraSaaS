@@ -1,0 +1,182 @@
+{
+  "module": {
+    "name": "HCM-HR",
+    "type": "Hybrid",
+    "priority": 5,
+    "description": "SAP-style Human Capital Management with payroll posting to FI"
+  },
+
+  "corePrinciples": {
+    "employeeIsMasterData": true,
+    "payrollIsTransactional": true,
+    "noDirectLedgerWrites": true,
+    "piiProtectionMandatory": true
+  },
+
+  "organizationalScope": {
+    "tenant": "TenantId",
+    "legalEntity": "LegalEntityId",
+    "siteOptional": true,
+    "currency": "Tenant.BaseCurrency"
+  },
+
+  "masterData": {
+    "required": [
+      "Employee",
+      "Department",
+      "Designation",
+      "PayStructure",
+      "Shift"
+    ],
+    "rules": [
+      "Employee master is tenant scoped",
+      "Employee changes are versioned",
+      "PII fields encrypted at rest"
+    ]
+  },
+
+  "employeeLifecycle": {
+    "states": [
+      "Onboarded",
+      "Active",
+      "Suspended",
+      "Separated"
+    ],
+    "rules": [
+      "Lifecycle state controls payroll eligibility",
+      "Separated employees cannot be paid",
+      "State changes are auditable"
+    ]
+  },
+
+  "attendanceTime": {
+    "sources": [
+      "Manual",
+      "Biometric",
+      "Device",
+      "API"
+    ],
+    "rules": [
+      "Attendance locked after payroll run",
+      "Corrections require approval"
+    ]
+  },
+
+  "payroll": {
+    "model": "PeriodBased",
+    "period": "Monthly",
+    "components": [
+      "Basic",
+      "Allowance",
+      "Deduction",
+      "Statutory"
+    ],
+    "rules": [
+      "Payroll calculated before posting",
+      "Payroll results immutable after posting",
+      "Re-run creates adjustment payroll"
+    ]
+  },
+
+  "statutoryCompliance": {
+    "supported": [
+      "PF",
+      "ESI",
+      "ProfessionalTax",
+      "TDS"
+    ],
+    "rules": [
+      "Statutory rules configuration-driven",
+      "Rates versioned by effective date"
+    ]
+  },
+
+  "payrollPosting": {
+    "target": "FI",
+    "rules": [
+      "Payroll creates FI document",
+      "Salary expense posted to cost centers",
+      "Deductions posted to liability accounts"
+    ]
+  },
+
+  "integrationRules": {
+    "FI": "Payroll posts expenses and liabilities",
+    "CO": "Payroll costs available for cost analysis",
+    "Security": "Role-based access to HR data"
+  },
+
+  "storageStrategy": {
+    "sql": {
+      "useFor": [
+        "Employee master",
+        "Attendance",
+        "Payroll runs"
+      ],
+      "rules": [
+        "Fixed schema for payroll amounts",
+        "No EAV for salary values"
+      ]
+    },
+    "eav": {
+      "useFor": [
+        "Optional employee attributes",
+        "Dynamic HR fields"
+      ]
+    },
+    "mongo": {
+      "useFor": [
+        "HR dashboards",
+        "Employee 360 view"
+      ]
+    }
+  },
+
+  "compliance": {
+    "auditLog": "Mandatory",
+    "standards": [
+      "ISO27001",
+      "GDPR",
+      "LaborLaws"
+    ],
+    "rules": [
+      "Access to PII logged",
+      "Data retention enforced",
+      "Employee consent respected"
+    ]
+  },
+
+  "security": {
+    "authorization": [
+      "ViewEmployee",
+      "EditEmployee",
+      "RunPayroll",
+      "PostPayroll"
+    ],
+    "rules": [
+      "Payroll posting requires dual approval",
+      "PII access role restricted"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Encrypt PII fields",
+      "Version employee changes",
+      "Lock payroll after posting",
+      "Post payroll to FI"
+    ],
+    "mustNever": [
+      "Store salary dynamically",
+      "Edit posted payroll",
+      "Expose PII in logs"
+    ]
+  },
+
+  "keyLaws": [
+    "Employees are people, not rows",
+    "Payroll is calculated, not edited",
+    "HR owns people data, FI owns money",
+    "Compliance overrides convenience"
+  ]
+}

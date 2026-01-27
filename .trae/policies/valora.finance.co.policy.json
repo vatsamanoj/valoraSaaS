@@ -1,0 +1,130 @@
+{
+  "module": {
+    "name": "Finance-CO",
+    "type": "Derived",
+    "priority": 2,
+    "description": "SAP-style Controlling for cost and profitability analysis"
+  },
+
+  "corePrinciples": {
+    "noDirectLedgerWrites": true,
+    "readsFromFIOnly": true,
+    "noEAVForAmounts": true,
+    "derivedNotPrimary": true
+  },
+
+  "organizationalScope": {
+    "tenant": "TenantId",
+    "legalEntity": "LegalEntityId",
+    "costCenter": "CostCenterId",
+    "profitCenter": "ProfitCenterId"
+  },
+
+  "masterData": {
+    "required": [
+      "CostCenter",
+      "ProfitCenter",
+      "InternalOrder"
+    ],
+    "rules": [
+      "Masters are tenant scoped",
+      "Masters referenced by FI documents",
+      "Masters can be time-bound (valid from/to)"
+    ]
+  },
+
+  "dataSources": {
+    "primary": "LedgerEntry",
+    "secondary": [
+      "FinancialTransaction",
+      "TaxLine"
+    ],
+    "rule": "CO never persists independent financial truth"
+  },
+
+  "costFlowRules": {
+    "assignment": [
+      "Cost assigned at posting time",
+      "Default cost center via configuration",
+      "Manual override allowed before posting"
+    ],
+    "allocation": [
+      "Periodic allocations only",
+      "Allocation creates FI adjustment entries",
+      "Original ledger entries remain unchanged"
+    ]
+  },
+
+  "profitabilityAnalysis": {
+    "dimensions": [
+      "Customer",
+      "Product",
+      "Site",
+      "Region"
+    ],
+    "rules": [
+      "Profit derived from FI revenue and cost",
+      "No manual profit entry allowed"
+    ]
+  },
+
+  "periodControl": {
+    "periodType": "FiscalPeriod",
+    "rules": [
+      "CO follows FI posting period",
+      "Closed period cannot be recalculated",
+      "Recalculation requires new period"
+    ]
+  },
+
+  "integrationRules": {
+    "FI": "Source of truth",
+    "SD": "Revenue source",
+    "MM": "Cost source",
+    "HCM": "Payroll cost source"
+  },
+
+  "storageStrategy": {
+    "sql": {
+      "useFor": [
+        "Cost summaries",
+        "Profit summaries",
+        "Allocation logs"
+      ]
+    },
+    "mongo": {
+      "useFor": [
+        "CO dashboards",
+        "Drill-down reports"
+      ]
+    }
+  },
+
+  "compliance": {
+    "auditLog": "Mandatory",
+    "rules": [
+      "Allocation traceability required",
+      "Derivation logic auditable"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Read ledger, never mutate it",
+      "Create adjustment entries via FI",
+      "Respect fiscal period control"
+    ],
+    "mustNever": [
+      "Write amounts directly",
+      "Override posted ledger entries",
+      "Recalculate closed periods"
+    ]
+  },
+
+  "keyLaws": [
+    "CO explains FI, it never replaces it",
+    "Costs are allocated, not edited",
+    "Profit is derived, not entered",
+    "Ledger purity is sacred"
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "module": {
+    "name": "Security-RLS",
+    "type": "Infrastructure",
+    "priority": 7,
+    "description": "Zero-trust security with tenant isolation and Supabase RLS"
+  },
+
+  "identityModel": {
+    "provider": "SupabaseAuth",
+    "userKey": "auth.users.id",
+    "rules": [
+      "User identity comes ONLY from auth context",
+      "No user id passed from UI is trusted",
+      "JWT is mandatory for every request"
+    ]
+  },
+
+  "tenantResolution": {
+    "strategy": "UserTenantMapping",
+    "table": "UserTenant",
+    "rules": [
+      "User can belong to multiple tenants",
+      "Active tenant resolved per session",
+      "TenantId injected into request context",
+      "TenantId never hardcoded"
+    ]
+  },
+
+  "authorizationModel": {
+    "type": "RBAC",
+    "tables": [
+      "Role",
+      "Permission",
+      "RolePermission"
+    ],
+    "rules": [
+      "Authorization evaluated before data access",
+      "Module + Action based permissions",
+      "Sensitive actions require elevated role"
+    ]
+  },
+
+  "rowLevelSecurity": {
+    "enabled": true,
+    "principle": "TenantId isolation at database level",
+    "rules": [
+      "Every table must have TenantId",
+      "All queries filtered by TenantId",
+      "No bypass of RLS allowed"
+    ]
+  },
+
+  "supabaseRLSPatterns": {
+    "readPolicy": "TenantId IN (SELECT TenantId FROM UserTenant WHERE UserId = auth.uid())",
+    "writePolicy": "TenantId = current_setting('app.current_tenant')",
+    "rules": [
+      "Reads allowed only for mapped tenants",
+      "Writes allowed only for active tenant",
+      "RLS enforced even for service role unless explicitly disabled"
+    ]
+  },
+
+  "serviceRoleUsage": {
+    "allowedFor": [
+      "Background jobs",
+      "Kafka consumers",
+      "Data sync services"
+    ],
+    "rules": [
+      "Service role never exposed to UI",
+      "Service role still enforces TenantId",
+      "Actions audited explicitly"
+    ]
+  },
+
+  "dataProtection": {
+    "pii": [
+      "Employee",
+      "Patient",
+      "UserProfile"
+    ],
+    "rules": [
+      "PII encrypted at rest",
+      "PII masked by role",
+      "Access to PII logged"
+    ]
+  },
+
+  "auditAndCompliance": {
+    "auditLog": "Mandatory",
+    "rules": [
+      "Every write operation logged",
+      "Security events logged",
+      "Failed access attempts recorded"
+    ]
+  },
+
+  "apiSecurity": {
+    "pattern": "CQRS",
+    "rules": [
+      "No direct table access from API",
+      "All access via handlers",
+      "CorrelationId required per request"
+    ]
+  },
+
+  "attackPrevention": {
+    "rules": [
+      "No dynamic SQL",
+      "Input validation mandatory",
+      "Rate limiting enabled",
+      "Replay protection via JWT expiry"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Resolve user from auth context",
+      "Resolve tenant from UserTenant",
+      "Apply RLS-compatible queries",
+      "Log security-relevant actions"
+    ],
+    "mustNever": [
+      "Trust TenantId from client",
+      "Disable RLS for convenience",
+      "Expose service role keys",
+      "Bypass authorization checks"
+    ]
+  },
+
+  "keyLaws": [
+    "Authentication identifies the user",
+    "Authorization decides the action",
+    "RLS enforces the boundary",
+    "Tenant isolation is non-negotiable",
+    "Security is architecture, not a feature"
+  ]
+}

@@ -1,0 +1,195 @@
+{
+  "module": {
+    "name": "Project-AI-Execution",
+    "type": "Governance",
+    "priority": 11,
+    "description": "Project management, task orchestration, and AI execution control"
+  },
+
+  "corePrinciples": {
+    "projectsAreFirstClass": true,
+    "everythingIsTraceable": true,
+    "aiExecutesWithinPolicy": true,
+    "artifactsAreEvidence": true
+  },
+
+  "projectModel": {
+    "entities": [
+      "Project",
+      "ProjectPhase",
+      "ProjectTask",
+      "ProjectDependency",
+      "ProjectArtifact"
+    ],
+    "rules": [
+      "Projects are tenant scoped",
+      "Projects mapped to domains and modules",
+      "Every task belongs to a phase"
+    ]
+  },
+
+  "projectLifecycle": {
+    "phases": [
+      "Initiation",
+      "Design",
+      "Build",
+      "Test",
+      "Deploy",
+      "Operate"
+    ],
+    "rules": [
+      "Phase order enforced",
+      "Exit criteria required per phase",
+      "Phase completion auditable"
+    ]
+  },
+
+  "taskModel": {
+    "taskTypes": [
+      "Schema",
+      "API",
+      "CQRS",
+      "UI",
+      "Integration",
+      "Migration",
+      "Test",
+      "Deployment"
+    ],
+    "states": [
+      "Backlog",
+      "InProgress",
+      "Blocked",
+      "Review",
+      "Done"
+    ],
+    "rules": [
+      "Tasks must declare inputs and outputs",
+      "Blocked tasks require reason",
+      "Done requires artifact linkage"
+    ]
+  },
+
+  "dependencyManagement": {
+    "rules": [
+      "Hard dependencies enforced",
+      "Circular dependencies forbidden",
+      "Upstream completion required"
+    ]
+  },
+
+  "artifactManagement": {
+    "artifactTypes": [
+      "DDL",
+      "Policy",
+      "APIContract",
+      "UIConfig",
+      "Migration",
+      "TestCase",
+      "DeploymentScript"
+    ],
+    "rules": [
+      "Every task produces at least one artifact",
+      "Artifacts are immutable once approved",
+      "Artifacts versioned and traceable"
+    ]
+  },
+
+  "aiExecutionModel": {
+    "authority": "TRAE",
+    "executionUnits": [
+      "Generate",
+      "Validate",
+      "Integrate",
+      "Verify"
+    ],
+    "rules": [
+      "AI executes tasks only within assigned scope",
+      "AI must respect all loaded policies",
+      "AI cannot mark task Done without artifacts"
+    ]
+  },
+
+  "qualityGates": {
+    "gates": [
+      "ArchitectureCompliance",
+      "SecurityCompliance",
+      "FinancialSafety",
+      "TenantIsolation",
+      "TestCoverage"
+    ],
+    "rules": [
+      "All gates must pass before Done",
+      "Failures block progression",
+      "Gate results recorded"
+    ]
+  },
+
+  "metricsAndTracking": {
+    "metrics": [
+      "TaskCompletionRate",
+      "PolicyViolations",
+      "ReworkCount",
+      "LeadTime"
+    ],
+    "rules": [
+      "Metrics are read-only",
+      "Metrics derived from task events"
+    ]
+  },
+
+  "storageStrategy": {
+    "sql": {
+      "useFor": [
+        "Projects",
+        "Tasks",
+        "Dependencies",
+        "Artifacts"
+      ]
+    },
+    "mongo": {
+      "useFor": [
+        "Project dashboards",
+        "AI progress visualization"
+      ]
+    }
+  },
+
+  "security": {
+    "rules": [
+      "Project access role-based",
+      "Artifact access controlled",
+      "AI actions logged"
+    ]
+  },
+
+  "auditAndCompliance": {
+    "auditLog": "Mandatory",
+    "rules": [
+      "Task state changes logged",
+      "Artifact creation logged",
+      "AI decisions traceable"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Create tasks before execution",
+      "Attach artifacts to tasks",
+      "Respect dependencies",
+      "Pass quality gates"
+    ],
+    "mustNever": [
+      "Execute unassigned tasks",
+      "Skip artifact generation",
+      "Bypass quality gates",
+      "Self-approve violations"
+    ]
+  },
+
+  "keyLaws": [
+    "No task without an artifact",
+    "No artifact without a task",
+    "AI accelerates, governance controls",
+    "Delivery is evidence-based"
+  ]
+}

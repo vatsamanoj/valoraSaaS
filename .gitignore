@@ -1,0 +1,21 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+[Dd]ebug/
+[Rr]elease/
+*.pdb
+
+# Node.js
+node_modules/
+build/
+dist/
+.env
+.env.local
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/

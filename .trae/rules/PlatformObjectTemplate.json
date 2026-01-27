@@ -1,0 +1,770 @@
+{
+  "_id": "TENANT_LAB_001",
+  "tenantId": "LAB003",
+  "language": "en",
+  "tenantName": "ABC Diagnostics",
+  "subscription": {
+    "planCode": "PRO",
+    "status": "ACTIVE",
+    "billingCycle": "MONTHLY",
+    "validFrom": "2026-01-01",
+    "validTo": "2026-12-31",
+    "limits": {
+      "maxUsers": 50,
+      "maxScreens": 200,
+      "maxRecordsPerScreen": 100000,
+      "storageMB": 10240
+    }
+  },
+  "features": {
+    "dynamicScreens": true,
+    "versioning": true,
+    "previewEnvironment": true,
+    "prodEnvironment": true,
+    "auditLogs": true,
+    "aiAssistant": true,
+    "apiAccess": true
+  },
+  "roles": {
+    "PlatformAdmin": {
+      "permissions": [
+        "*"
+      ]
+    },
+    "TenantAdmin": {
+      "permissions": [
+        "screen:create",
+        "screen:edit",
+        "screen:publish",
+        "user:manage"
+      ]
+    },
+    "Doctor": {
+      "permissions": [
+        "screen:view"
+      ]
+    },
+    "Receptionist": {
+      "permissions": [
+        "screen:view",
+        "screen:create"
+      ]
+    }
+  },
+  "screenRights": {
+    "Patient": {
+      "default": {
+        "visible": true,
+        "actions": [
+          "view"
+        ]
+      },
+      "byRole": {
+        "Doctor": [
+          "view"
+        ],
+        "Receptionist": [
+          "view",
+          "create"
+        ],
+        "TenantAdmin": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      }
+    },
+    "PathologyBilling": {
+      "default": {
+        "visible": true,
+        "actions": [
+          "view"
+        ]
+      },
+      "byRole": {
+        "Receptionist": [
+          "view",
+          "create"
+        ],
+        "TenantAdmin": [
+          "view",
+          "create",
+          "edit",
+          "delete"
+        ]
+      }
+    }
+  },
+  "environments": {
+    "test": {
+      "screens": {
+        "Nurse": {
+          "v2": {
+            "objectCode": "Nurse",
+            "version": 2,
+            "isPublished": true,
+            "audit": {
+              "tenantId": {
+                "type": "text",
+                "required": true
+              },
+              "createdAt": {
+                "type": "datetime"
+              },
+              "createdBy": {
+                "type": "text"
+              },
+              "updatedAt": {
+                "type": "datetime"
+              },
+              "updatedBy": {
+                "type": "text"
+              },
+              "isDeleted": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "dataModel": {
+              "type": "master",
+              "storage": "table",
+              "audit": true,
+              "versioned": true
+            },
+            "persistence": {
+              "write": {
+                "store": "postgres",
+                "schemaStrategy": "schema-per-tenant",
+                "table": true
+              },
+              "read": {
+                "store": "mongodb",
+                "mode": "materialized",
+                "document": "single",
+                "projection": "ui"
+              }
+            },
+            "fields": {
+              "Department": {
+                "required": false
+              },
+              "Name": {
+                "required": true,
+                "maxLength": 100
+              },
+              "NurseCode": {
+                "required": true,
+                "maxLength": 20
+              }
+            }
+          }
+        },
+        "OrderTest": {
+          "v3": {
+            "objectCode": "OrderTest",
+            "version": 3,
+            "isPublished": true,
+            "audit": {
+              "tenantId": {
+                "type": "text",
+                "required": true
+              },
+              "createdAt": {
+                "type": "datetime"
+              },
+              "createdBy": {
+                "type": "text"
+              },
+              "updatedAt": {
+                "type": "datetime"
+              },
+              "updatedBy": {
+                "type": "text"
+              },
+              "isDeleted": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "dataModel": {
+              "type": "master",
+              "storage": "table",
+              "audit": true,
+              "versioned": true
+            },
+            "persistence": {
+              "write": {
+                "store": "postgres",
+                "schemaStrategy": "schema-per-tenant",
+                "table": true
+              },
+              "read": {
+                "store": "mongodb",
+                "mode": "materialized",
+                "document": "single",
+                "projection": "ui"
+              }
+            },
+            "fields": {
+              "Name": {
+                "ui": {
+                  "type": "text"
+                },
+                "required": true
+              },
+              "Amount": {
+                "ui": {
+                  "type": "number"
+                },
+                "required": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "preview": {
+      "screens": {
+        "Patient": {
+          "v13": {
+            "objectCode": "Patient",
+            "version": 13,
+            "isPublished": true,
+            "audit": {
+              "tenantId": {
+                "type": "text",
+                "required": true
+              },
+              "createdAt": {
+                "type": "datetime"
+              },
+              "createdBy": {
+                "type": "text"
+              },
+              "updatedAt": {
+                "type": "datetime"
+              },
+              "updatedBy": {
+                "type": "text"
+              },
+              "isDeleted": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "dataModel": {
+              "type": "master",
+              "storage": "table",
+              "audit": true,
+              "versioned": true
+            },
+            "persistence": {
+              "write": {
+                "store": "postgres",
+                "schemaStrategy": "schema-per-tenant",
+                "table": true
+              },
+              "read": {
+                "store": "mongodb",
+                "mode": "materialized",
+                "document": "single",
+                "projection": "ui"
+              }
+            },
+            "fields": {
+              "Name": {
+                "ui": {
+                  "type": "text"
+                },
+                "required": true,
+                "unique": true
+              },
+              "Age": {
+                "ui": {
+                  "type": "number"
+                },
+                "required": true
+              },
+              "Email": {
+                "ui": {
+                  "type": "text"
+                },
+                "required": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "prod": {
+      "screens": {
+        "Doctor": {
+          "v16": {
+            "objectCode": "Doctor",
+            "version": 16,
+            "isPublished": true,
+            "audit": {
+              "tenantId": {
+                "type": "text",
+                "required": true
+              },
+              "createdAt": {
+                "type": "datetime"
+              },
+              "createdBy": {
+                "type": "text"
+              },
+              "updatedAt": {
+                "type": "datetime"
+              },
+              "updatedBy": {
+                "type": "text"
+              },
+              "isDeleted": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "dataModel": {
+              "type": "master",
+              "storage": "table",
+              "audit": true,
+              "versioned": true
+            },
+            "persistence": {
+              "write": {
+                "store": "postgres",
+                "schemaStrategy": "schema-per-tenant",
+                "table": true
+              },
+              "read": {
+                "store": "mongodb",
+                "mode": "materialized",
+                "document": "single",
+                "projection": "ui"
+              }
+            },
+            "uniqueConstraints": [
+              [
+                "firstName",
+                "lastName"
+              ]
+            ],
+            "fields": {
+              "doctorCode": {
+                "type": "String",
+                "required": true,
+                "unique": true,
+                "ui": {
+                  "label": "Doctor Code",
+                  "type": "text"
+                }
+              },
+              "firstName": {
+                "type": "String",
+                "ui": {
+                  "type": "text"
+                }
+              },
+              "lastName": {
+                "type": "String",
+                "ui": {
+                  "type": "text"
+                }
+              },
+              "specialization": {
+                "type": "String",
+                "ui": {
+                  "type": "select",
+                  "options": [
+                    "General",
+                    "Cardiology",
+                    "Neurology",
+                    "Pediatrics"
+                  ]
+                }
+              },
+              "licenseNumber": {
+                "type": "String",
+                "ui": {
+                  "type": "text"
+                }
+              }
+            }
+          }
+        },
+        "PathologyBilling": {
+          "v8": {
+            "module": "PathologyBilling",
+            "objectCode": "PathologyBilling",
+            "objectType": "Transaction",
+            "version": 8,
+            "isPublished": true,
+            "audit": {
+              "tenantId": {
+                "type": "text",
+                "required": true
+              },
+              "createdAt": {
+                "type": "datetime"
+              },
+              "createdBy": {
+                "type": "text"
+              },
+              "updatedAt": {
+                "type": "datetime"
+              },
+              "updatedBy": {
+                "type": "text"
+              },
+              "isDeleted": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "dataModel": {
+              "type": "transaction",
+              "storage": "table",
+              "audit": true,
+              "versioned": true
+            },
+            "persistence": {
+              "write": {
+                "store": "postgres",
+                "schemaStrategy": "schema-per-tenant",
+                "table": true
+              },
+              "read": {
+                "store": "mongodb",
+                "mode": "materialized",
+                "document": "single",
+                "embed": {
+                  "masters": "snapshot",
+                  "grids": "inline",
+                  "smallMasters": "full",
+                  "bigMasters": "partial"
+                },
+                "projection": "ui"
+              }
+            },
+            "fields": {
+              "BillNo": {
+                "required": true,
+                "unique": true,
+                "maxLength": 30,
+                "autoGenerate": true,
+                "skipFocus": true,
+                "pattern": "BILL-{YYYY}-{SEQ:6}",
+                "ui": {
+                  "type": "text",
+                  "label": "Bill Number",
+                  "readOnly": true
+                }
+              },
+              "InvoiceNo": {
+                "required": false,
+                "ui": {
+                  "type": "text",
+                  "label": "Invoice Number"
+                }
+              },
+              "BillingDate": {
+                "required": true,
+                "ui": {
+                  "type": "date",
+                  "label": "Billing Date"
+                }
+              },
+              "PatientName": {
+                "required": true,
+                "maxLength": 120,
+                "ui": {
+                  "type": "text",
+                  "label": "Patient Name"
+                }
+              },
+              "PatientAge": {
+                "required": false,
+                "ui": {
+                  "type": "number",
+                  "label": "Age"
+                }
+              },
+              "PatientGender": {
+                "required": false,
+                "dataModel": {
+                  "type": "master",
+                  "storage": "embedded"
+                },
+                "ui": {
+                  "type": "select",
+                  "label": "Gender",
+                  "options": [
+                    "Male",
+                    "Female",
+                    "Other"
+                  ]
+                }
+              },
+              "ContactNumber": {
+                "required": false,
+                "ui": {
+                  "type": "tel",
+                  "label": "Contact Number"
+                }
+              },
+              "Email": {
+                "required": false,
+                "ui": {
+                  "type": "email",
+                  "label": "Email"
+                }
+              },
+              "ReferralDoctor": {
+                "required": false,
+                "dataModel": {
+                  "type": "master",
+                  "storage": "table"
+                },
+                "ui": {
+                  "type": "lookup",
+                  "label": "Referral Doctor",
+                  "lookup": "Doctor"
+                }
+              },
+              "Items": {
+                "ui": {
+                  "type": "grid",
+                  "label": "Billing Items",
+                  "rowKey": "rowId"
+                },
+                "columns": {
+                  "TestCode": {
+                    "ui": {
+                      "type": "text"
+                    }
+                  },
+                  "TestName": {
+                    "ui": {
+                      "type": "text"
+                    }
+                  },
+                  "Category": {
+                    "ui": {
+                      "type": "text"
+                    }
+                  },
+                  "Price": {
+                    "ui": {
+                      "type": "number"
+                    }
+                  },
+                  "Qty": {
+                    "ui": {
+                      "type": "number"
+                    }
+                  },
+                  "Discount": {
+                    "ui": {
+                      "type": "number"
+                    }
+                  },
+                  "TaxPercent": {
+                    "ui": {
+                      "type": "number"
+                    }
+                  },
+                  "TaxAmount": {
+                    "ui": {
+                      "type": "number"
+                    }
+                  },
+                  "NetAmount": {
+                    "ui": {
+                      "type": "number"
+                    }
+                  },
+                  "Attachment": {
+                    "ui": {
+                      "type": "file",
+                      "label": "Report / Proof",
+                      "multiple": false
+                    },
+                    "storage": {
+                      "provider": "supabase",
+                      "bucket": "tenant-files",
+                      "visibility": "private",
+                      "pathTemplate": "{tenantId}/{objectCode}/{recordId}/rows/{rowId}/attachments",
+                      "store": "path",
+                      "maxSizeMB": 5
+                    }
+                  }
+                }
+              },
+              "TotalAmount": {
+                "required": false,
+                "ui": {
+                  "type": "number",
+                  "label": "Total Amount"
+                }
+              },
+              "DiscountAmount": {
+                "required": false,
+                "ui": {
+                  "type": "number",
+                  "label": "Discount"
+                }
+              },
+              "TaxAmount": {
+                "required": false,
+                "ui": {
+                  "type": "number",
+                  "label": "Tax Amount"
+                }
+              },
+              "NetAmount": {
+                "required": false,
+                "ui": {
+                  "type": "number",
+                  "label": "Net Amount"
+                }
+              },
+              "PaymentMode": {
+                "required": false,
+                "dataModel": {
+                  "type": "master",
+                  "storage": "embedded"
+                },
+                "ui": {
+                  "type": "select",
+                  "label": "Payment Mode",
+                  "options": [
+                    "Cash",
+                    "Card",
+                    "UPI"
+                  ]
+                }
+              },
+              "PaymentStatus": {
+                "required": false,
+                "dataModel": {
+                  "type": "master",
+                  "storage": "embedded"
+                },
+                "ui": {
+                  "type": "select",
+                  "label": "Payment Status",
+                  "options": [
+                    "Pending",
+                    "Paid",
+                    "Partial"
+                  ]
+                }
+              },
+              "Remarks": {
+                "required": false,
+                "ui": {
+                  "type": "textarea",
+                  "label": "Remarks"
+                }
+              }
+            },
+            "ui": {
+              "title": "New Bill",
+              "icon": "receipt_long",
+              "enterKeyNavigation": true,
+              "listFields": [
+                "BillNo",
+                "BillingDate",
+                "PatientName",
+                "TotalAmount",
+                "PaymentStatus"
+              ],
+              "filterFields": [
+                "BillNo",
+                "PatientName",
+                "BillingDate",
+                "PaymentStatus"
+              ],
+              "layout": [
+                {
+                  "section": "Billing Header",
+                  "fields": [
+                    "BillNo",
+                    "InvoiceNo",
+                    "BillingDate"
+                  ]
+                },
+                {
+                  "section": "Patient Details",
+                  "fields": [
+                    "PatientName",
+                    "PatientAge",
+                    "PatientGender",
+                    "ContactNumber",
+                    "Email",
+                    "ReferralDoctor"
+                  ]
+                },
+                {
+                  "section": "Test Items",
+                  "type": "grid",
+                  "gridConfig": {
+                    "dataSource": "Items",
+                    "allowAdd": true,
+                    "allowDelete": true,
+                    "allowEdit": true,
+                    "columns": [
+                      "TestCode",
+                      "TestName",
+                      "Category",
+                      "Price",
+                      "Qty",
+                      "Discount",
+                      "TaxPercent",
+                      "TaxAmount",
+                      "NetAmount",
+                      "Attachment"
+                    ],
+                    "footer": {
+                      "show": true,
+                      "sum": [
+                        "Price",
+                        "TaxAmount",
+                        "NetAmount"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "section": "Totals",
+                  "fields": [
+                    "TotalAmount",
+                    "DiscountAmount",
+                    "TaxAmount",
+                    "NetAmount"
+                  ]
+                },
+                {
+                  "section": "Payment",
+                  "fields": [
+                    "PaymentMode",
+                    "PaymentStatus",
+                    "Remarks"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "meta": {
+    "createdAt": "2026-01-15T10:10:00Z",
+    "createdBy": "PlatformAdmin",
+    "updatedAt": "2026-01-16T08:45:00Z",
+    "updatedBy": "TenantAdmin"
+  }
+}

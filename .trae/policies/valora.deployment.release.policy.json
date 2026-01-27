@@ -1,0 +1,138 @@
+{
+  "module": {
+    "name": "Deployment-Release",
+    "type": "Infrastructure",
+    "priority": 12,
+    "description": "Controlled deployment, environment isolation, and release governance"
+  },
+
+  "corePrinciples": {
+    "environmentsAreIsolated": true,
+    "zeroDowntimePreferred": true,
+    "rollbackIsMandatory": true,
+    "configDrivesBehavior": true
+  },
+
+  "environmentModel": {
+    "environments": [
+      "Local",
+      "Dev",
+      "QA",
+      "UAT",
+      "Prod"
+    ],
+    "rules": [
+      "Each environment has isolated databases",
+      "No shared secrets across environments",
+      "Prod access is highly restricted"
+    ]
+  },
+
+  "deploymentUnits": {
+    "types": [
+      "API",
+      "Worker",
+      "OutboxProcessor",
+      "KafkaConsumer",
+      "UI"
+    ],
+    "rules": [
+      "Each unit deployable independently",
+      "Backward compatibility required",
+      "No breaking change without version bump"
+    ]
+  },
+
+  "releaseStrategy": {
+    "patterns": [
+      "BlueGreen",
+      "Canary",
+      "Rolling"
+    ],
+    "default": "Rolling",
+    "rules": [
+      "Schema changes deployed before code",
+      "Feature flags control activation",
+      "Tenant-by-tenant rollout supported"
+    ]
+  },
+
+  "databaseMigration": {
+    "rules": [
+      "Migrations are additive only",
+      "No destructive migration in prod",
+      "Migration scripts versioned",
+      "Migration execution logged"
+    ]
+  },
+
+  "featureManagement": {
+    "type": "FeatureFlag",
+    "rules": [
+      "Flags are tenant scoped",
+      "Flags stored in configuration tables",
+      "Flags removable after stabilization"
+    ]
+  },
+
+  "rollbackPolicy": {
+    "rules": [
+      "Code rollback supported without data loss",
+      "Feature flags used for instant disable",
+      "Rollback actions audited"
+    ]
+  },
+
+  "monitoringAndObservability": {
+    "metrics": [
+      "Latency",
+      "ErrorRate",
+      "Throughput",
+      "ConsumerLag"
+    ],
+    "rules": [
+      "Health checks mandatory",
+      "Alerts configured for SLA breaches",
+      "Logs correlated via CorrelationId"
+    ]
+  },
+
+  "security": {
+    "rules": [
+      "Secrets stored in vault",
+      "No secrets in config files",
+      "Deployment credentials rotated"
+    ]
+  },
+
+  "compliance": {
+    "auditLog": "Mandatory",
+    "rules": [
+      "Who deployed what and when recorded",
+      "Environment access logged",
+      "Release approvals auditable"
+    ]
+  },
+
+  "aiExecutionRules": {
+    "mustAlways": [
+      "Generate migration before code",
+      "Ensure backward compatibility",
+      "Attach release notes as artifacts",
+      "Validate rollback plan"
+    ],
+    "mustNever": [
+      "Deploy directly to prod",
+      "Bypass approval gates",
+      "Run destructive migration",
+      "Hardcode environment values"
+    ]
+  },
+
+  "keyLaws": [
+    "Release is a business event",
+    "Every deployment must be reversible",
+    "Configuration enables safe rollout",
+    "Production is sacred"
+  ]
+}

@@ -1,0 +1,221 @@
+policy:
+  name: valora-architecture
+  version: 1.0
+  scope: global
+  priority: critical
+
+description: >
+  Enforces CQRS + Polyglot Persistence architecture with Supabase as the
+  authoritative write store and MongoDB as schema + read model store.
+  This policy supersedes all previous ObjectCode/SchemaJson designs.
+
+# =====================================================
+# CORE ARCHITECTURAL PRINCIPLES
+# =====================================================
+
+principles:
+  - id: single_source_of_truth
+    rule: Supabase (PostgreSQL) is the ONLY authoritative source of business data.
+    enforcement: mandatory
+
+  - id: cqrs_separation
+    rule: Write paths and read paths must be strictly separated.
+    enforcement: mandatory
+
+  - id: polyglot_persistence
+    rule: Each datastore has a clearly defined responsibility and must not overlap.
+    enforcement: mandatory
+
+# =====================================================
+# DATA OWNERSHIP RULES
+# =====================================================
+
+data_ownership:
+  authoritative_store:
+    name: supabase
+    responsibilities:
+      - transactional_writes
+      - updates
+      - deletes
+      - constraints
+      - relations
+      - auditing
+      - analytics
+      - reporting
+
+  derived_store:
+    name: mongodb
+    responsibilities:
+      - json_schema_definitions
+      - ui_layout_definitions
+      - validation_rules
+      - schema_versioning
+      - cqrs_read_models
+      - denormalized_views
+
+  ownership_rules:
+    - condition: data_owned_by_record
+      store: supabase
+    - condition: data_controls_or_describes_records
+      store: mongodb
+    - condition: read_optimized_projection
+      store: mongodb
+    - condition: transactional_mutation
+      store: supabase
+
+# =====================================================
+# MULTI-TENANCY RULES
+# =====================================================
+
+multitenancy:
+  model: single_database_shared_schema
+  supabase:
+    required_column: tenant_id
+    isolation: row_level_security
+    rls_source: jwt.tenant_id
+
+  mongodb:
+    required_field: tenantId
+    isolation: mandatory_query_filter
+
+  prohibited_models:
+    - schema_per_tenant
+    - database_per_tenant
+
+# =====================================================
+# WRITE PATH RULES
+# =====================================================
+
+write_path:
+  allowed_targets:
+    - supabase
+
+  prohibited_targets:
+    - mongodb
+
+  flow:
+    - step: validate
+      source: mongodb.json_schema
+    - step: write
+      target: supabase
+    - step: emit_event
+      mechanism:
+        - trigger
+        - webhook
+        - kafka
+    - step: build_read_model
+      target: mongodb
+
+# =====================================================
+# READ PATH RULES
+# =====================================================
+
+read_path:
+  preferred_source: mongodb
+  allowed_sources:
+    - mongodb
+    - supabase (analytics_and_reports_only)
+
+  rules:
+    - ui_reads_must_use: mongodb
+    - list_and_search_queries: mongodb
+    - denormalized_views: mongodb
+    - joins_in_ui_layer: prohibited
+
+# =====================================================
+# CUSTOM FIELD STRATEGY
+# =====================================================
+
+custom_fields:
+  core_fields:
+    storage: supabase_columns
+    definition: fixed
+
+  dynamic_fields:
+    storage: extension_tables
+    example_tables:
+      - patient_extensions
+      - invoice_extensions
+
+  schema_control:
+    source: mongodb
+    determines:
+      - core_vs_custom
+      - validation
+      - visibility
+
+# =====================================================
+# MONGO READ MODEL RULES
+# =====================================================
+
+mongo_read_models:
+  characteristics:
+    - denormalized
+    - ui_ready
+    - rebuildable
+    - disposable
+    - eventually_consistent
+
+  mandatory_fields:
+    - tenantId
+    - meta.schemaVersion
+    - meta.updatedAt
+
+  forbidden_content:
+    - transactional_logic
+    - write_side_business_rules
+    - authoritative_flags
+
+# =====================================================
+# STRICT PROHIBITIONS
+# =====================================================
+
+prohibited_patterns:
+  - name: write_to_mongo
+    description: Writing business data directly to MongoDB is forbidden.
+
+  - name: schema_json_in_sql
+    description: Storing JSON schema or UI definitions in Supabase is forbidden.
+
+  - name: mongo_as_source_of_truth
+    description: MongoDB must never be treated as authoritative.
+
+  - name: bidirectional_sync
+    description: MongoDB must never write back to Supabase.
+
+# =====================================================
+# EVENTING & CONSISTENCY
+# =====================================================
+
+eventing:
+  consistency_model: eventual
+  guarantees:
+    - supabase_is_always_correct
+    - mongo_may_lag_temporarily
+
+  recovery:
+    - read_models_must_be_rebuildable
+    - supabase_is_replay_source
+
+# =====================================================
+# AI CODING INSTRUCTIONS (FOR TRAE)
+# =====================================================
+
+ai_guidelines:
+  code_generation:
+    - respect_cqrs: true
+    - enforce_tenant_isolation: true
+    - write_only_to_supabase: true
+    - read_only_from_mongo_for_ui: true
+
+  when_unsure:
+    fallback_decision: supabase
+
+  mental_model:
+    statement: >
+      Supabase owns the truth.
+      Mongo owns behavior, shape, and speed.
+
+# =====================================================
+# END OF POLICY
+# =====================================================

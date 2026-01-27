@@ -1,0 +1,207 @@
+{
+  "platform": {
+    "name": "valora",
+    "vision": "SAP-like global SaaS ERP with dynamic UI and fixed compliant core",
+    "architecture": "Clean Architecture + CQRS + Polyglot Persistence",
+    "aiRole": "Senior Enterprise Solution Architect"
+  },
+
+  "corePrinciples": {
+    "sqlSchemaIsFixed": true,
+    "uiSchemaIsDynamic": true,
+    "metadataDrivesBehavior": true,
+    "noPerTenantTables": true,
+    "noDynamicDDL": true,
+    "tenantIsolationIsMandatory": true
+  },
+
+  "tenancy": {
+    "model": "Single DB, Shared Schema, TenantId enforced everywhere",
+    "rules": [
+      "Every table must have TenantId",
+      "No cross-tenant joins",
+      "Tenant resolved from auth context",
+      "Tenant enforced in CQRS handlers"
+    ]
+  },
+
+  "organizationModel": {
+    "sapMapping": {
+      "Client": "Tenant",
+      "CompanyCode": "LegalEntity",
+      "Plant": "Site"
+    },
+    "entities": [
+      "Tenant",
+      "LegalEntity",
+      "Site"
+    ]
+  },
+
+  "multiRegionCurrency": {
+    "regionAt": "Tenant",
+    "baseCurrencyAt": "Tenant",
+    "rules": [
+      "Ledger stored in base currency only",
+      "Exchange rate fixed at posting time",
+      "GDPR rules apply to EU tenants"
+    ]
+  },
+
+  "storageStrategy": {
+    "sql": {
+      "useFor": [
+        "Financial data",
+        "Transactional data",
+        "Compliance records",
+        "Master data"
+      ],
+      "rules": [
+        "Strong consistency",
+        "FK enforced",
+        "Immutable after posting"
+      ]
+    },
+    "eav": {
+      "useFor": [
+        "Dynamic UI fields",
+        "Tenant-specific attributes",
+        "Non-financial masters"
+      ],
+      "tables": [
+        "ObjectDefinition",
+        "ObjectField",
+        "ObjectRecord",
+        "ObjectRecordAttribute"
+      ]
+    },
+    "mongo": {
+      "useFor": [
+        "Read models",
+        "Denormalized views",
+        "Dashboards"
+      ],
+      "rules": [
+        "Never source of truth",
+        "Updated only via events"
+      ]
+    }
+  },
+
+  "sapLikeModules": {
+    "FI": {
+      "type": "Fixed",
+      "rules": [
+        "Double-entry ledger",
+        "No EAV",
+        "No JSON for amounts",
+        "Immutable after posting"
+      ]
+    },
+    "CO": {
+      "type": "Derived",
+      "rules": [
+        "Reads from FI only",
+        "No direct ledger writes"
+      ]
+    },
+    "SD": {
+      "type": "Transactional",
+      "rules": [
+        "Billing creates FI document"
+      ]
+    },
+    "MM": {
+      "type": "Transactional",
+      "rules": [
+        "Stock movement creates FI impact"
+      ]
+    },
+    "HCM": {
+      "type": "Hybrid",
+      "rules": [
+        "Payroll posts to FI"
+      ]
+    }
+  },
+
+  "financialRules": {
+    "ledger": {
+      "pattern": "DoubleEntry",
+      "rules": [
+        "Debit must equal Credit",
+        "Append-only",
+        "No hard delete",
+        "Reversal via new entry"
+      ]
+    },
+    "forbidden": [
+      "EAV for money",
+      "JSON for amounts",
+      "Editing posted transactions"
+    ]
+  },
+
+  "security": {
+    "auth": "JWT / OAuth2",
+    "authorization": "RBAC + Permission Matrix",
+    "rules": [
+      "No direct DB access",
+      "Secrets never in code",
+      "PII encrypted at rest"
+    ]
+  },
+
+  "compliance": {
+    "standards": [
+      "ISO27001",
+      "SOC2",
+      "CMMI",
+      "GDPR",
+      "GST/VAT"
+    ],
+    "rules": [
+      "AuditLog mandatory",
+      "Change history immutable",
+      "Data retention enforced"
+    ]
+  },
+
+  "projectManagement": {
+    "storage": "SQL",
+    "entities": [
+      "Project",
+      "ProjectTask",
+      "ProjectArtifact"
+    ],
+    "rules": [
+      "Projects are tenant scoped",
+      "Tasks linked to modules and objects",
+      "Artifacts track schema, API, UI"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Generate DB + CQRS + API together",
+      "Respect tenant isolation",
+      "Follow SAP document flow",
+      "Use configuration over customization"
+    ],
+    "mustNever": [
+      "Alter tables per tenant",
+      "Store financial data dynamically",
+      "Bypass posting logic",
+      "Write directly to Mongo"
+    ],
+    "completionRule": "Feature is incomplete unless end-to-end"
+  },
+
+  "keyLaws": [
+    "Flexibility ends where money begins",
+    "UI can change, database must not",
+    "Configuration changes behavior, not schema",
+    "Every important action is a document",
+    "Every document creates accounting impact"
+  ]
+}

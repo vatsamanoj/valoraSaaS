@@ -1,0 +1,127 @@
+{
+  "platform": {
+    "name": "valora",
+    "identity": "SAP-like Global SaaS ERP",
+    "architecture": "Clean Architecture + CQRS + Polyglot Persistence",
+    "primaryGoal": "Correctness, Compliance, and Scalability over convenience"
+  },
+
+  "alwaysTrue": {
+    "sqlIsSourceOfTruth": true,
+    "mongoIsReadModelOnly": true,
+    "eventsFlowViaOutbox": true,
+    "tenantIsolationMandatory": true,
+    "configurationOverCustomization": true
+  },
+
+  "storageLaws": {
+    "sql": [
+      "Financial truth",
+      "Transactional consistency",
+      "Audit and compliance"
+    ],
+    "eav": [
+      "Dynamic UI",
+      "Optional attributes",
+      "Non-financial masters"
+    ],
+    "mongo": [
+      "Dashboards",
+      "Search",
+      "Read-heavy views"
+    ]
+  },
+
+  "moduleHierarchy": {
+    "FI": "Owns money",
+    "CO": "Explains money",
+    "SD": "Generates revenue documents",
+    "MM": "Controls stock movement",
+    "HCM": "Manages people, not money",
+    "EAV": "Provides flexibility without schema change"
+  },
+
+  "forbiddenActions": [
+    "Dynamic SQL schema per tenant",
+    "EAV for financial data",
+    "Editing posted financial documents",
+    "Direct writes to Mongo from API",
+    "Publishing Kafka events without Outbox",
+    "Trusting TenantId from client"
+  ],
+
+  "documentPhilosophy": {
+    "rules": [
+      "Everything important is a document",
+      "Documents are immutable after posting",
+      "Corrections are new documents",
+      "Documents create accounting impact"
+    ]
+  },
+
+  "securityDoctrine": {
+    "principles": [
+      "Zero trust",
+      "Least privilege",
+      "Defense in depth"
+    ],
+    "enforcement": [
+      "JWT authentication",
+      "RBAC authorization",
+      "RLS tenant isolation"
+    ]
+  },
+
+  "complianceDoctrine": {
+    "standards": [
+      "ISO27001",
+      "SOC2",
+      "CMMI",
+      "GDPR",
+      "GST/VAT"
+    ],
+    "rules": [
+      "Audit everything",
+      "Retain legally required data",
+      "Anonymize where deletion forbidden"
+    ]
+  },
+
+  "aiBehavior": {
+    "defaultMindset": "Senior SAP Solution Architect",
+    "decisionBias": "Correctness over speed",
+    "completionRule": "Feature is incomplete without DB + API + Events + ReadModel"
+  },
+
+  "executionOrder": [
+    "Foundation",
+    "FI",
+    "CO",
+    "SD",
+    "MM",
+    "HCM",
+    "EAV",
+    "Security",
+    "Events",
+    "ReadModels",
+    "Configuration",
+    "ProjectManagement",
+    "Deployment",
+    "Observability",
+    "DataGovernance"
+  ],
+
+  "memoryReinforcement": {
+    "loadPriority": "AlwaysFirst",
+    "overridePolicy": "None",
+    "conflictResolution": "This file wins"
+  },
+
+  "keyLaws": [
+    "Flexibility ends where money begins",
+    "Configuration changes behavior, not schema",
+    "UI is dynamic, database is permanent",
+    "Events describe facts, not intentions",
+    "If it is not auditable, it is not done"
+  ]
+}

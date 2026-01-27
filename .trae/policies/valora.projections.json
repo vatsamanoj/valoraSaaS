@@ -1,0 +1,65 @@
+{
+  "_id": "GLOBAL_FullProjectionOnly",
+  "tenantId": "GLOBAL",
+  "appliesTo": "*",
+
+  "version": 1,
+
+  "projectionMode": "FullOnly",
+
+  "storage": {
+    "target": "Mongo",
+    "collectionPrefix": "full_",
+    "partitionBy": ["TenantId"],
+    "ttlDays": null
+  },
+
+  "strategy": {
+    "type": "FullAggregate",
+    "embedAllChildren": true,
+    "snapshotAllMasters": true,
+    "flattenForUI": false
+  },
+
+  "rules": {
+    "allowScreenProjections": false,
+    "allowPartialProjections": false,
+    "allowSearchProjections": false,
+    "allowCustomProjections": false
+  },
+
+  "documentLimits": {
+    "maxSizeMB": 16,
+    "onOverflow": "SplitChildren"
+  },
+
+  "indexing": {
+    "autoIndex": true,
+    "indexes": [
+      { "fields": ["TenantId", "Id"], "unique": true }
+    ]
+  },
+
+  "eventBindings": [
+    { "event": "*Created", "action": "UpsertFull" },
+    { "event": "*Updated", "action": "UpsertFull" },
+    { "event": "*Deleted", "action": "SoftDelete" }
+  ],
+
+  "rebuildPolicy": {
+    "allowRebuild": true,
+    "rebuildStrategy": "AsyncBatch"
+  },
+
+  "audit": {
+    "trackSourceVersion": true,
+    "trackLastEventId": true
+  },
+
+  "migrationPlan": {
+    "futureMode": "Hybrid",
+    "note": "This policy is Phase-1 bootstrap. Will be replaced by per-object ProjectionPolicy later."
+  },
+
+  "status": "Active"
+}

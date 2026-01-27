@@ -1,0 +1,153 @@
+{
+  "module": {
+    "name": "Observability-SRE",
+    "type": "Operations",
+    "priority": 13,
+    "description": "Logging, metrics, tracing, alerting, and incident response"
+  },
+
+  "corePrinciples": {
+    "observabilityByDesign": true,
+    "noSilentFailures": true,
+    "tenantAwareTelemetry": true,
+    "reliabilityIsAFeature": true
+  },
+
+  "logging": {
+    "type": "Structured",
+    "requiredFields": [
+      "Timestamp",
+      "Level",
+      "Service",
+      "Module",
+      "TenantId",
+      "CorrelationId",
+      "Message"
+    ],
+    "rules": [
+      "No PII in logs",
+      "Sensitive values masked",
+      "Logs immutable once written"
+    ]
+  },
+
+  "metrics": {
+    "categories": [
+      "System",
+      "Application",
+      "Business",
+      "Kafka"
+    ],
+    "examples": {
+      "system": ["CPU", "Memory", "Disk"],
+      "application": ["Latency", "ErrorRate", "Throughput"],
+      "business": ["InvoicesPosted", "LedgerEntries", "PayrollRuns"],
+      "kafka": ["ConsumerLag", "PublishRate"]
+    },
+    "rules": [
+      "Metrics tagged with TenantId",
+      "High-cardinality tags controlled",
+      "Metrics are read-only"
+    ]
+  },
+
+  "distributedTracing": {
+    "enabled": true,
+    "rules": [
+      "TraceId propagated across services",
+      "CorrelationId mapped to TraceId",
+      "Async boundaries preserved"
+    ]
+  },
+
+  "healthChecks": {
+    "types": [
+      "Liveness",
+      "Readiness",
+      "Dependency"
+    ],
+    "rules": [
+      "Health endpoints public but secured",
+      "Dependency health degraded, not hidden"
+    ]
+  },
+
+  "alerting": {
+    "severityLevels": [
+      "Info",
+      "Warning",
+      "Critical"
+    ],
+    "rules": [
+      "Alerts tied to SLO breaches",
+      "No alert without runbook",
+      "Tenant-impacting alerts escalated"
+    ]
+  },
+
+  "sloAndSla": {
+    "sloExamples": [
+      "99.9% API availability",
+      "P95 latency < 300ms",
+      "Kafka consumer lag < threshold"
+    ],
+    "rules": [
+      "SLOs defined per service",
+      "Error budgets tracked",
+      "SLO violations reviewed"
+    ]
+  },
+
+  "incidentManagement": {
+    "phases": [
+      "Detect",
+      "Triage",
+      "Mitigate",
+      "Resolve",
+      "Postmortem"
+    ],
+    "rules": [
+      "Incidents logged as records",
+      "Root cause analysis mandatory",
+      "Blameless postmortems"
+    ]
+  },
+
+  "capacityPlanning": {
+    "rules": [
+      "Forecast growth per tenant",
+      "Scale before saturation",
+      "Kafka capacity reviewed periodically"
+    ]
+  },
+
+  "securityObservability": {
+    "rules": [
+      "Auth failures logged",
+      "Suspicious patterns alerted",
+      "Audit logs monitored"
+    ]
+  },
+
+  "aiExecutionRules": {
+    "mustAlways": [
+      "Instrument new services",
+      "Add metrics for business actions",
+      "Propagate CorrelationId",
+      "Update runbooks when behavior changes"
+    ],
+    "mustNever": [
+      "Log sensitive data",
+      "Create alerts without action",
+      "Ignore error budgets",
+      "Disable telemetry in prod"
+    ]
+  },
+
+  "keyLaws": [
+    "If you cannot observe it, you cannot operate it",
+    "Incidents teach, they do not punish",
+    "Business metrics are as important as system metrics",
+    "Reliability earns trust"
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "module": {
+    "name": "Configuration-IMG",
+    "type": "Infrastructure",
+    "priority": 10,
+    "description": "SAP-style configuration layer controlling system behavior"
+  },
+
+  "corePrinciples": {
+    "configurationNotCustomization": true,
+    "noSchemaChangeForConfig": true,
+    "configIsDataNotCode": true,
+    "tenantScopedConfig": true
+  },
+
+  "configurationScope": {
+    "levels": [
+      "Tenant",
+      "LegalEntity",
+      "Site",
+      "Module"
+    ],
+    "rules": [
+      "Lower level overrides higher level",
+      "Effective dates supported",
+      "Configuration is versioned"
+    ]
+  },
+
+  "configurationTypes": {
+    "financial": [
+      "PostingPeriodControl",
+      "AccountDetermination",
+      "TaxDetermination",
+      "NumberSeries"
+    ],
+    "logistics": [
+      "ValuationMethod",
+      "StockPostingRules"
+    ],
+    "sales": [
+      "PricingProcedure",
+      "DiscountRules",
+      "TaxRules"
+    ],
+    "hr": [
+      "PayrollCycle",
+      "StatutoryRules"
+    ]
+  },
+
+  "storageModel": {
+    "tables": [
+      "ConfigGroup",
+      "ConfigKey",
+      "ConfigValue"
+    ],
+    "rules": [
+      "All config values stored as typed data",
+      "No free-form JSON blobs",
+      "Config changes audited"
+    ]
+  },
+
+  "resolutionRules": {
+    "pattern": "ResolveAtRuntime",
+    "rules": [
+      "Config resolved at command execution",
+      "Resolved config cached per request",
+      "No hardcoded defaults in code"
+    ]
+  },
+
+  "changeManagement": {
+    "rules": [
+      "Config changes require approval",
+      "Critical config changes logged",
+      "Rollback supported via versioning"
+    ]
+  },
+
+  "integrationRules": {
+    "FI": "Controls posting accounts and periods",
+    "SD": "Controls pricing and tax logic",
+    "MM": "Controls valuation and stock rules",
+    "HCM": "Controls payroll and statutory logic"
+  },
+
+  "security": {
+    "rules": [
+      "Only authorized roles can change config",
+      "Config access logged",
+      "Sensitive config encrypted"
+    ]
+  },
+
+  "compliance": {
+    "auditLog": "Mandatory",
+    "rules": [
+      "Who changed what and when recorded",
+      "Effective-from dates enforced"
+    ]
+  },
+
+  "aiCodingRules": {
+    "mustAlways": [
+      "Resolve behavior from config tables",
+      "Never hardcode business rules",
+      "Respect effective dates",
+      "Fail fast if config missing"
+    ],
+    "mustNever": [
+      "Alter schema for configuration",
+      "Store config in code",
+      "Skip audit for config change"
+    ]
+  },
+
+  "keyLaws": [
+    "Configuration changes behavior, not structure",
+    "Customization is a last resort",
+    "If behavior varies, it belongs in config",
+    "IMG is data, not code"
+  ]
+}

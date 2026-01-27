@@ -1,0 +1,175 @@
+{
+  "policyId": "UI_METADATA_DRIVEN_PLATFORM",
+  "version": 2,
+  "status": "Active",
+
+  "title": "All Screens Must Be Driven by PlatformObjectTemplate or Approved Generic System Screens",
+
+  "description": "This policy enforces that the entire platform UI is generated from PlatformObjectTemplate JSON metadata. Only explicitly approved generic system screens are allowed to exist as coded UI. No module-specific or object-specific hardcoded UI is permitted.",
+
+  "scope": {
+    "appliesTo": [
+      "Frontend",
+      "Backend",
+      "API",
+      "Studio",
+      "AllModules",
+      "AllTenants"
+    ]
+  },
+
+  "coreRules": {
+    "uiSourceOfTruth": "PlatformObjectTemplate",
+
+    "forbidden": [
+      "ModuleSpecificScreens",
+      "ObjectSpecificScreens",
+      "HardcodedForms",
+      "HardcodedGrids",
+      "HardcodedWorkflows",
+      "HardcodedValidations",
+      "ModuleSpecificPages",
+      "ObjectSpecificPages"
+    ],
+
+    "allowedGenericSystemScreens": [
+      "JournalEntry",
+      "ApprovalInbox",
+      "TaskInbox",
+      "ReportViewer",
+      "ImportWizard",
+      "ExportWizard",
+      "BulkUpload",
+      "AuditLogViewer",
+      "Settings",
+      "UserManagement",
+      "RoleManagement",
+      "DashboardShell"
+    ],
+
+    "mandatory": [
+      "AllBusinessScreensMustLoadFromTemplate",
+      "AllBusinessFieldsMustComeFromTemplate",
+      "AllBusinessValidationsMustComeFromTemplate",
+      "AllBusinessActionsMustComeFromTemplate",
+      "AllBusinessWorkflowsMustComeFromTemplate",
+      "AllBusinessPermissionsMustComeFromTemplate"
+    ]
+  },
+
+  "screenClassification": {
+    "businessScreens": {
+      "source": "PlatformObjectTemplate",
+      "hardcodingAllowed": false
+    },
+    "systemScreens": {
+      "source": "Code",
+      "hardcodingAllowed": true,
+      "mustBeGeneric": true,
+      "mustBeReusableAcrossModules": true,
+      "mustNotReferenceAnySpecificModuleOrObject": true
+    }
+  },
+
+  "backendRules": {
+    "controllers": {
+      "onlyAllowed": [
+        "GenericObjectController",
+        "GenericQueryController",
+        "GenericCommandController",
+        "TemplateController",
+        "SystemScreenController"
+      ],
+      "forbidden": [
+        "InvoiceController",
+        "PatientController",
+        "LedgerController",
+        "AnyModuleSpecificController"
+      ]
+    },
+
+    "apiRouting": {
+      "businessPattern": "/api/object/{module}/{object}/{action}",
+      "systemPattern": "/api/system/{screen}/{action}",
+      "templateEndpoint": "/api/template/{module}/{object}"
+    }
+  },
+
+  "frontendRules": {
+    "pageLoading": {
+      "businessScreens": {
+        "mustLoadTemplateFirst": true,
+        "renderFromTemplateOnly": true
+      },
+      "systemScreens": {
+        "mayBeCoded": true,
+        "mustUseGenericComponents": true
+      }
+    },
+
+    "rendering": {
+      "business": {
+        "formRenderer": "GenericFormRenderer",
+        "gridRenderer": "GenericGridRenderer",
+        "viewRenderer": "GenericViewRenderer",
+        "workflowRenderer": "GenericWorkflowRenderer"
+      },
+      "system": {
+        "shellRenderer": "GenericShell",
+        "componentPolicy": "NoBusinessLogicInside"
+      }
+    }
+  },
+
+  "dataBindingRules": {
+    "bindingChain": [
+      "UIField",
+      "DTOField",
+      "DomainField",
+      "DatabaseColumn"
+    ],
+    "noDirectDbBindingInUI": true
+  },
+
+  "financeAndCoreModules": {
+    "tablesMayBeFixed": true,
+    "uiMustStillBeDynamicForBusinessScreens": true,
+    "systemScreensMayBeUsed": true,
+    "noOtherExceptionsAllowed": true
+  },
+
+  "governance": {
+    "schemaLocation": "MongoDB.PlatformObjectTemplates",
+    "versioningRequired": true,
+    "tenantOverrideAllowed": true,
+    "migrationRequiredOnBreakingChange": true,
+
+    "systemScreenRegistration": {
+      "mustBeRegisteredIn": "MongoDB.SystemScreenRegistry",
+      "requiresPlatformAdminApproval": true
+    }
+  },
+
+  "validation": {
+    "startupChecks": [
+      "FailIfAnyBusinessScreenIsHardcoded",
+      "FailIfAnyControllerIsModuleSpecific",
+      "FailIfAnyUnregisteredSystemScreenExists"
+    ]
+  },
+
+  "aiEnforcement": {
+    "aiMustReadThisPolicy": true,
+    "aiMustRefuseViolations": true,
+    "aiMustGenerateTemplatesNotScreens": true,
+    "aiResponseOnViolation": "This violates UI_METADATA_DRIVEN_PLATFORM policy. Use PlatformObjectTemplate or register a System Screen."
+  },
+
+  "migrationNote": {
+    "phase1": "Business screens use FullProjection and PlatformObjectTemplate",
+    "phase2": "Optimized projections still referenced only from template"
+  },
+
+  "createdAt": "2026-01-01T00:00:00Z",
+  "createdBy": "PlatformAdmin"
+}
