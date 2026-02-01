@@ -1,4 +1,4 @@
-using Lab360.Application.Schemas;
+using Valora.Api.Application.Schemas;
 using Microsoft.EntityFrameworkCore;
 using Valora.Api.Domain.Entities;
 using Valora.Api.Infrastructure.Persistence;

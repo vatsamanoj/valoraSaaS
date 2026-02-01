@@ -71,6 +71,7 @@ public class ProjectionManager
             if (entityType == typeof(JournalEntry))
             {
                 entity = await _dbContext.JournalEntries
+                    .AsNoTracking() // Ensure fresh read from DB, bypassing any stale cache
                     .Include(je => je.Lines)
                         .ThenInclude(l => l.GLAccount)
                     .FirstOrDefaultAsync(je => je.Id == guidId);
@@ -78,25 +79,49 @@ public class ProjectionManager
             else if (entityType == typeof(EmployeePayroll))
             {
                 entity = await _dbContext.EmployeePayrolls
+                    .AsNoTracking()
                     .Include(ep => ep.Employee)
                     .FirstOrDefaultAsync(ep => ep.Id == guidId);
             }
             else if (entityType == typeof(SalesOrder))
             {
                 entity = await _dbContext.SalesOrders
+                    .AsNoTracking()
                     .Include(so => so.Items)
                     .FirstOrDefaultAsync(so => so.Id == guidId);
             }
             else if (entityType == typeof(StockMovement))
             {
                 entity = await _dbContext.StockMovements
+                    .AsNoTracking()
                     .Include(sm => sm.Material)
                     .FirstOrDefaultAsync(sm => sm.Id == guidId);
             }
             else
             {
                 // Generic Fetch
+                // Important: FindAsync might return a tracked entity that is stale if not reloaded?
+                // But for a fresh scope it should be fine. 
+                // However, we must ensure we are not getting a cached version if we are in a long-running process (like Kafka consumer).
+                // OutboxProcessor runs in a scope? KafkaConsumer runs in a scope?
+                // Let's force AsNoTracking logic by using Set<T>().
+                
+                // entity = await _dbContext.FindAsync(entityType, guidId);
+                
+                // Reflection-based AsNoTracking fetch
+                var method = typeof(DbContext).GetMethods()
+                    .First(m => m.Name == "Set" && m.IsGenericMethod && m.GetParameters().Length == 0)
+                    .MakeGenericMethod(entityType);
+                
+                var dbSet = method.Invoke(_dbContext, null);
+                // We can't easily chain AsNoTracking with reflection on object. 
+                // Simplest fix: Just use FindAsync but reload?
+                
                 entity = await _dbContext.FindAsync(entityType, guidId);
+                if (entity != null)
+                {
+                    await _dbContext.Entry(entity).ReloadAsync(); // Force reload from DB to get latest committed data
+                }
             }
             
             if (entity == null)
@@ -133,6 +158,9 @@ public class ProjectionManager
         }
     }
 
+    // PropagateGLAccountUpdateAsync removed. 
+    // Logic moved to Valora.Api.Application.Finance.Services.FinanceDataConsistencyService
+    
     private Type? GetEntityType(string typeName)
     {
         if (_typeCache.TryGetValue(typeName, out var cachedType)) return cachedType;

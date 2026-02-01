@@ -35,6 +35,8 @@ public class SdController : ControllerBase
             tenantContext.TenantId,
             request.CustomerId,
             request.Currency,
+            null, // ShippingAddress
+            null, // BillingAddress
             request.Items
         );
         var result = await _mediator.Send(command);

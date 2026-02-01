@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Lab360.Application.Schemas;
+using Valora.Api.Application.Schemas;
 using Valora.Api.Domain.Common;
 
 namespace Valora.Api.Application.Services;

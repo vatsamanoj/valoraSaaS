@@ -2,7 +2,12 @@ import { supabase } from '../lib/supabase';
 
 export const getApiUrl = () => {
     if (typeof window === 'undefined') return '';
+    // Use window.location to determine if we are in dev mode
+    // If accessing via localhost, assume backend is at :5028 (standard .NET Kestrel)
+    // If accessing via 127.0.0.1, likewise.
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    // Hardcode port 5028 for now as that's what the backend is running on
     return isLocalhost ? 'http://localhost:5028' : 'http://your-prod-api';
 };
 
@@ -29,6 +34,24 @@ export const getHeaders = async () => {
 
     if (token) {
         baseHeaders['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Try to get Tenant from valora_context if missing in headers
+    if (!extraHeaders['X-Tenant-Id'] && typeof window !== 'undefined') {
+        try {
+            const contextRaw = window.localStorage.getItem('valora_context');
+            if (contextRaw) {
+                const context = JSON.parse(contextRaw);
+                if (context.tenantId) {
+                    extraHeaders['X-Tenant-Id'] = context.tenantId;
+                }
+            }
+        } catch {}
+    }
+
+    // Default Tenant ID for Development/Lab Mode if still not set
+    if (!extraHeaders['X-Tenant-Id']) {
+        extraHeaders['X-Tenant-Id'] = 'LAB_001';
     }
 
     return {
@@ -127,6 +150,36 @@ export const api = {
             }
         }
         return unwrapResult(response);
+    },
+    
+    get: async (endpoint: string, options: RequestInit = {}) => {
+        const headers = await getHeaders();
+        const url = endpoint.startsWith('http') ? endpoint : `${getApiUrl()}${endpoint}`;
+        
+        const res = await fetch(url, {
+            ...options,
+            method: 'GET',
+            headers: {
+                ...headers,
+                ...(options.headers || {})
+            }
+        });
+
+        // Wrap in object with data property to match Axios-like usage in some components
+        let json;
+        try {
+            const text = await res.text();
+            try {
+                json = JSON.parse(text);
+            } catch {
+                console.warn("API response was not JSON:", text.substring(0, 100));
+                json = null;
+            }
+        } catch (e) {
+            console.error("Failed to read response body", e);
+            json = null;
+        }
+        return { data: json, status: res.status, statusText: res.statusText, ok: res.ok };
     },
     
     fetch: async (endpoint: string, options: RequestInit = {}) => {

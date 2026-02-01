@@ -1,5 +1,6 @@
 using Lab360.Application.Common.Results;
 using Lab360.Application.Common.Security;
+using Valora.Api.Application.Schemas;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -14,11 +15,13 @@ public class PlatformObjectController : ControllerBase
 {
     private readonly MongoDbContext _mongoDb;
     private readonly ILogger<PlatformObjectController> _logger;
+    private readonly ISchemaProvider _schemaProvider;
 
-    public PlatformObjectController(MongoDbContext mongoDb, ILogger<PlatformObjectController> logger)
+    public PlatformObjectController(MongoDbContext mongoDb, ILogger<PlatformObjectController> logger, ISchemaProvider schemaProvider)
     {
         _mongoDb = mongoDb;
         _logger = logger;
+        _schemaProvider = schemaProvider;
     }
 
     private FilterDefinition<BsonDocument> GetTenantFilter(string tenantId)
@@ -201,6 +204,12 @@ public class PlatformObjectController : ControllerBase
         var tenantContext = TenantContextFactory.FromHttp(HttpContext);
         _logger.LogInformation($"[GetLatest] Tenant: {tenantContext.TenantId}, Env: {tenantContext.Environment}, Object: {objectCode}");
 
+        // --- INJECTION HOOK START ---
+        // Ensure schema exists (Seeding)
+        // We call GetSchemaAsync which triggers the seeding logic in SchemaCache if the schema is missing.
+        await _schemaProvider.GetSchemaAsync(tenantContext.TenantId, objectCode, cancellationToken);
+        // --- INJECTION HOOK END ---
+
         var collection = _mongoDb.GetCollection<BsonDocument>("PlatformObjectTemplate");
         var filter = GetTenantFilter(tenantContext.TenantId);
         var doc = await collection.Find(filter).FirstOrDefaultAsync(cancellationToken);
@@ -248,7 +257,7 @@ public class PlatformObjectController : ControllerBase
                 // Try searching in "preview" environment as fallback if we are in "prod" (or vice versa)?
                 // For now, strict environment scoping.
                  _logger.LogWarning($"[GetLatest] Screen {objectCode} not found in {tenantContext.Environment}");
-                return NotFound(ApiResult.Fail(tenantContext.TenantId, objectCode, "latest", new ApiError("NotFound", "Screen not found")));
+                return NotFound(ApiResult.Fail(tenantContext.TenantId, objectCode, "latest", new ApiError("NotFound", "Screen not found - DEBUG V1")));
             }
 
             screenValue = screenElement.Value;

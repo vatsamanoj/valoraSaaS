@@ -4,6 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Valora.Api.Domain.Entities.Sales;
 using Valora.Api.Infrastructure.Persistence;
 
+using System.Text.Json;
+using Valora.Api.Domain.Entities;
+using Valora.Api.Domain.Events;
+
 namespace Valora.Api.Application.Sales.Commands.CreateSalesOrder;
 
 public class CreateSalesOrderCommandHandler : IRequestHandler<CreateSalesOrderCommand, ApiResult>
@@ -17,9 +21,20 @@ public class CreateSalesOrderCommandHandler : IRequestHandler<CreateSalesOrderCo
 
     public async Task<ApiResult> Handle(CreateSalesOrderCommand request, CancellationToken cancellationToken)
     {
-        if (!request.Items.Any())
+        // Validate Customer (GL Account)
+        // We assume CustomerId holds the GL Account Name as configured in Schema lookup
+        var glAccount = await _dbContext.GLAccounts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(gl => gl.TenantId == request.TenantId && gl.Name == request.CustomerId, cancellationToken);
+
+        if (glAccount == null)
         {
-            return ApiResult.Fail(request.TenantId, "SD", "create-so", new ApiError("Validation", "Sales Order must have items."));
+            return ApiResult.Fail(request.TenantId, "SD", "create-so", new ApiError("Validation", $"Customer (GL Account) '{request.CustomerId}' not found."));
+        }
+
+        if (request.Items == null || !request.Items.Any())
+        {
+            return ApiResult.Fail(request.TenantId, "SD", "create-so", new ApiError("Validation", "Sales Order must have at least one item."));
         }
 
         // Fetch Materials to get Price
@@ -41,7 +56,9 @@ public class CreateSalesOrderCommandHandler : IRequestHandler<CreateSalesOrderCo
             OrderDate = DateTime.UtcNow,
             CustomerId = request.CustomerId,
             Currency = request.Currency,
-            Status = SalesOrderStatus.Draft,
+            ShippingAddress = request.ShippingAddress,
+            BillingAddress = request.BillingAddress,
+            Status = request.AutoPost ? SalesOrderStatus.Invoiced : SalesOrderStatus.Draft,
             Items = new List<SalesOrderItem>()
         };
 
@@ -63,6 +80,34 @@ public class CreateSalesOrderCommandHandler : IRequestHandler<CreateSalesOrderCo
         order.TotalAmount = order.Items.Sum(i => i.LineTotal);
 
         _dbContext.SalesOrders.Add(order);
+        
+        // Auto-Post Logic (Generate Event)
+        if (request.AutoPost)
+        {
+             Console.WriteLine($"[DEBUG] CreateSalesOrder: Auto-Posting enabled. Emitting valora.sd.so_billed.");
+             var evt = new SalesOrderBilledEvent
+            {
+                TenantId = request.TenantId,
+                AggregateId = order.Id.ToString(),
+                SalesOrderId = order.Id,
+                OrderNumber = order.OrderNumber,
+                CustomerId = order.CustomerId, // GL Account Name
+                TotalAmount = order.TotalAmount,
+                Currency = order.Currency,
+                BillingDate = DateTime.UtcNow
+            };
+
+            _dbContext.OutboxMessages.Add(new OutboxMessageEntity
+            {
+                Id = Guid.NewGuid(),
+                TenantId = request.TenantId,
+                Topic = "valora.sd.so_billed",
+                Payload = JsonSerializer.Serialize(evt),
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return ApiResult.Ok(request.TenantId, "SD", "create-so", order.Id);

@@ -12,7 +12,8 @@ interface UserOption {
 
 const USERS: UserOption[] = [
     { label: 'Platform Admin', email: 'admin@platform.com', type: 'PlatformAdmin' },
-    { label: 'Tenant Admin', email: 'admin@tenant.com', type: 'TenantAdmin' }
+    { label: 'Tenant Admin', email: 'admin@tenant.com', type: 'TenantAdmin' },
+    { label: 'Test User (Data)', email: 'test@valora.com', type: 'TenantAdmin', tenantId: 'TEST_TENANT' }
 ];
 
 const ENVIRONMENTS_PLATFORM = ['DEV', 'TEST', 'PROD'];

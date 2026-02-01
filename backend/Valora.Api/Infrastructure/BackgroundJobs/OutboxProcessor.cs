@@ -14,9 +14,13 @@ public class OutboxProcessor : BackgroundService
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+        
+        var bootstrap = config["Kafka:BootstrapServers"] ?? "localhost:9092";
+        if (bootstrap.Contains("localhost")) bootstrap = bootstrap.Replace("localhost", "127.0.0.1");
+
         _producerConfig = new ProducerConfig
         {
-            BootstrapServers = config["Kafka:BootstrapServers"] ?? "localhost:9092"
+            BootstrapServers = bootstrap
         };
     }
 
@@ -30,7 +34,7 @@ public class OutboxProcessor : BackgroundService
         {
             try
             {
-                Console.WriteLine("[CONSOLE DEBUG] OutboxProcessor: Polling DB...");
+                // Console.WriteLine("[CONSOLE DEBUG] OutboxProcessor: Polling DB...");
                 using var scope = _serviceProvider.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
 
@@ -56,6 +60,7 @@ public class OutboxProcessor : BackgroundService
                             message.Status = "Published";
                             message.ProcessedAt = DateTime.UtcNow;
                             _logger.LogInformation("Published message {MessageId} to {Topic}", message.Id, message.Topic);
+                            // Console.WriteLine($"[CONSOLE DEBUG] OutboxProcessor: Published {message.Topic}");
                         }
                         catch (Exception ex)
                         {

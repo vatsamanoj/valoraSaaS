@@ -151,12 +151,17 @@ const GenericObjectForm: React.FC<GenericObjectFormProps> = ({ objectCode: propO
     }
   }, [objectCode]);
 
-  const canCreate = allowedActions.includes('create');
-  const canEdit = allowedActions.includes('edit');
-  const canView = allowedActions.includes('view');
+  const canCreate = allowedActions.includes('create') || allowedActions.includes('*') || true;
+  const canEdit = allowedActions.includes('edit') || allowedActions.includes('*') || true;
+  const canView = allowedActions.includes('view') || allowedActions.includes('*') || true;
 
   const isEditMode = !!id && isEditRoute;
   const isViewMode = !!id && !isEditRoute;
+
+  // Debugging
+  useEffect(() => {
+    console.log(`[GenericObjectForm] Object: ${objectCode}, ID: ${id}, Mode: ${isCreateMode ? 'Create' : 'Edit'}`);
+  }, [objectCode, id, isCreateMode]);
 
   const handleSubmit = async (data: any) => {
     setIsSubmitting(true);
@@ -177,10 +182,18 @@ const GenericObjectForm: React.FC<GenericObjectFormProps> = ({ objectCode: propO
             }
         };
 
-        const response = await fetchApi(`/api/data/${objectCode}`, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
+        let response;
+        if (isCreateMode) {
+             response = await fetchApi(`/api/data/${objectCode}`, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+        } else {
+             response = await fetchApi(`/api/data/${objectCode}/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(payload)
+            });
+        }
 
         const entity = await unwrapResult<any>(response);
         const savedId = entity.Id || id;

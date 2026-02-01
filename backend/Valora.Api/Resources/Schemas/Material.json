@@ -1,0 +1,26 @@
+{
+  "fields": {
+    "MaterialCode": { "type": "Text", "label": "Material Code", "required": true, "isSystem": true },
+    "Description": { "type": "Text", "label": "Description", "required": true, "isSystem": true },
+    "MaterialType": { "type": "Text", "label": "Material Type", "options": ["Raw Material", "Finished Goods", "Service"], "isSystem": true },
+    "MaterialGroup": { "type": "Text", "label": "Material Group", "isSystem": true },
+    
+    "BaseUnitOfMeasure": { "type": "Text", "label": "Base Unit", "required": true, "isSystem": true },
+    "SalesUnit": { "type": "Text", "label": "Sales Unit", "isSystem": true },
+    
+    "StandardPrice": { "type": "Money", "label": "Standard Price", "isSystem": true },
+    "MovingAveragePrice": { "type": "Money", "label": "Moving Avg Price", "isSystem": true },
+    "ValuationClass": { "type": "Text", "label": "Valuation Class", "isSystem": true },
+
+    "Hazardous": { "type": "Boolean", "label": "Hazardous Material (Custom)" }
+  },
+  "ui": {
+    "listFields": ["MaterialCode", "Description", "MaterialType", "BaseUnitOfMeasure", "StandardPrice"],
+    "formGroups": [
+        { "title": "Basic Data", "fields": ["MaterialCode", "Description", "MaterialType", "MaterialGroup"] },
+        { "title": "Units of Measure", "fields": ["BaseUnitOfMeasure", "SalesUnit"] },
+        { "title": "Accounting", "fields": ["StandardPrice", "MovingAveragePrice", "ValuationClass"] },
+        { "title": "Compliance", "fields": ["Hazardous"] }
+    ]
+  }
+}

@@ -9,5 +9,8 @@ public record CreateSalesOrderCommand(
     string TenantId, 
     string CustomerId, 
     string Currency,
-    List<SalesOrderItemDto> Items
+    string? ShippingAddress,
+    string? BillingAddress,
+    List<SalesOrderItemDto> Items,
+    bool AutoPost = false
 ) : IRequest<ApiResult>;

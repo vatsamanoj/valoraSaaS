@@ -1,0 +1,159 @@
+{
+  "policyId": "VALORA-AI-TASK-CONVERGENCE-001",
+  "version": "1.0.0",
+  "name": "AI Task Convergence, Anti-Infinite-Test-Loop Policy",
+
+  "scope": [
+    "AIExecutionEngine",
+    "TestRunner",
+    "BuildSystem",
+    "BackendRunner",
+    "TaskAgent",
+    "FixAgent"
+  ],
+
+  "corePrinciples": {
+    "taskMustConverge": true,
+    "noInfiniteTestLoops": true,
+    "oneFailureAtATime": true,
+    "testsAreSubtasks": true,
+    "eachFailureMustBeTracked": true,
+    "noBlindReruns": true
+  },
+
+  "taskExecutionModel": {
+    "rules": [
+      "Each user task must create a TaskExecutionSession",
+      "Each session must have a unique TaskId",
+      "Each session must have its own WorkingDirectory",
+      "Each session must have its own LogFile",
+      "Each session must have its own TestPortRange"
+    ]
+  },
+
+  "portIsolationPolicy": {
+    "rules": [
+      "AI must start backend in ISOLATED MODE for task execution",
+      "AI must use special port range: 9000-9100 for task runs",
+      "Normal dev server must never be touched",
+      "Each test run must pick a free port from isolation pool",
+      "Port must be released after task completion"
+    ]
+  },
+
+  "taskLogAndFailureRegister": {
+    "requiredArtifacts": [
+      "TaskSession.json",
+      "FailureRegister.json",
+      "TaskExecution.log"
+    ],
+    "failureRecordSchema": {
+      "FailureId": "F-0001",
+      "Type": "Build | Runtime | Test | Logic | Assertion",
+      "File": "string",
+      "Message": "string",
+      "FirstSeenAt": "timestamp",
+      "Status": "Open | Fixed | Ignored",
+      "FixAttempts": "number"
+    }
+  },
+
+  "failureProcessingRules": {
+    "rules": [
+      "On first failure, assign FailureId",
+      "Do NOT run full test suite again",
+      "Select ONE open failure",
+      "Attempt fix only for that failure",
+      "Re-run ONLY the minimal test required",
+      "If fixed, mark failure as Fixed",
+      "Only then move to next failure"
+    ]
+  },
+
+  "antiLoopGuards": {
+    "rules": [
+      "If same failure occurs 3 times with no code change → STOP",
+      "If same script is regenerated twice → STOP",
+      "If same fix attempt repeated → STOP",
+      "If more than 5 total retries for same FailureId → ESCALATE",
+      "AI must summarize situation instead of looping"
+    ]
+  },
+
+  "testExecutionPolicy": {
+    "rules": [
+      "Do NOT run full solution tests unless explicitly required",
+      "Do NOT restart backend unless required by failure type",
+      "Prefer unit test over integration test",
+      "Prefer targeted test over full test",
+      "Prefer direct method test over HTTP test"
+    ]
+  },
+
+  "buildExecutionPolicy": {
+    "rules": [
+      "Do NOT rebuild entire solution for each fix",
+      "Build only affected projects",
+      "If only JS/TS changed, do not rebuild backend",
+      "If only config changed, do not rebuild binaries"
+    ]
+  },
+
+  "taskCompletionRules": {
+    "rules": [
+      "Task is COMPLETE only if all FailureIds are in Fixed state",
+      "When task completes, AI must stop all isolated servers",
+      "AI must delete temporary ports, temp logs, temp folders",
+      "AI must produce a FinalTaskSummary"
+    ]
+  },
+
+  "finalTaskSummarySchema": {
+    "mustContain": [
+      "TaskId",
+      "FailuresEncountered",
+      "FailuresFixed",
+      "RemainingFailures",
+      "FilesChanged",
+      "PortsUsed",
+      "TimeSpent",
+      "RootCauseSummary"
+    ]
+  },
+
+  "forbiddenPatterns": {
+    "behavior": [
+      "Run same test suite again and again",
+      "Recreate same .ps1 or .ps files repeatedly",
+      "Restart backend blindly",
+      "Rebuild entire solution for small change",
+      "Try random fixes",
+      "Loop without updating FailureRegister"
+    ]
+  },
+
+  "aiBehaviorRules": {
+    "rules": [
+      "AI must think in terms of FailureIds, not in terms of runs",
+      "AI must verbalize which FailureId it is currently fixing",
+      "AI must not switch to another failure until current is closed",
+      "AI must always update FailureRegister"
+    ]
+  },
+
+  "escalationPolicy": {
+    "rules": [
+      "If stuck, AI must STOP and ask for human input",
+      "AI must provide FailureRegister and logs to user",
+      "AI must NOT continue infinite retries"
+    ]
+  },
+
+  "keyLaws": [
+    "If failure is not registered, it does not exist",
+    "If no failure was closed, progress = zero",
+    "One task = one session",
+    "One fix = one failure",
+    "If you are looping, you are violating the policy"
+  ]
+}

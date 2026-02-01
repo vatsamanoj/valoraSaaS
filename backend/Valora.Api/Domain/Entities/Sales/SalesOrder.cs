@@ -43,5 +43,11 @@ public class SalesOrder : AuditableEntity
 
     public SalesOrderStatus Status { get; set; } = SalesOrderStatus.Draft;
 
+    [MaxLength(500)]
+    public string? ShippingAddress { get; set; }
+
+    [MaxLength(500)]
+    public string? BillingAddress { get; set; }
+
     public ICollection<SalesOrderItem> Items { get; set; } = new List<SalesOrderItem>();
 }

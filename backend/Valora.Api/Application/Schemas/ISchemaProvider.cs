@@ -1,4 +1,4 @@
-namespace Lab360.Application.Schemas
+namespace Valora.Api.Application.Schemas
 {    
     public interface ISchemaProvider
     {
@@ -6,6 +6,8 @@ namespace Lab360.Application.Schemas
             string tenantId,
             string module,
             CancellationToken cancellationToken);
+
+        Task SeedSchemaAsync(string tenantId, string module, CancellationToken cancellationToken); // 🔥 NEW
 
         void InvalidateCache(string tenantId, string module);
     }

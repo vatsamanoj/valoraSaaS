@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { fetchApi, unwrapResult } from '../../utils/api';
-import { RefreshCw, FileText, ChevronDown, ChevronRight, ChevronLeft, Plus, Search } from 'lucide-react';
+import { fetchApi, unwrapResult, getHeaders } from '../../utils/api';
+import { RefreshCw, FileText, ChevronDown, ChevronRight, ChevronLeft, Plus, Search, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ConsoleSimulator, SimulationLog } from '../ConsoleSimulator';
 
 interface JournalEntryLine {
     id: string;
@@ -36,11 +37,35 @@ const JournalEntryList = () => {
 
     // Filter State
     const [searchDocNum, setSearchDocNum] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    // Initialize default dates
+    const [startDate, setStartDate] = useState(() => {
+        const today = new Date();
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        return thirtyDaysAgo.toISOString().split('T')[0];
+    });
+    const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+    // Debug State
+    const [rawResponse, setRawResponse] = useState<any>(null);
+    const [showDebug, setShowDebug] = useState(false);
+    const [debugLogs, setDebugLogs] = useState<SimulationLog[]>([]);
+
+    const addLog = (message: string, type: 'info' | 'success' | 'error' | 'data', data?: any) => {
+        setDebugLogs(prev => [...prev, {
+            id: Date.now() + Math.random(),
+            timestamp: new Date().toLocaleTimeString(),
+            message,
+            type,
+            data
+        }]);
+    };
 
     const fetchEntries = async () => {
         setIsLoading(true);
+        setDebugLogs([]); // Clear logs on new fetch
+        addLog('Starting Fetch Request...', 'info');
+        
         try {
             const query = new URLSearchParams({
                 page: page.toString(),
@@ -51,16 +76,45 @@ const JournalEntryList = () => {
             if (startDate) query.append('startDate', startDate);
             if (endDate) query.append('endDate', endDate);
 
-            const response = await fetchApi(`/api/finance/journal-entries?${query.toString()}`);
+            const url = `/api/finance/journal-entries?${query.toString()}`;
+            addLog(`Request URL: ${url}`, 'info');
+            
+            // Log Headers (Tenant ID, Role, etc.)
+            const headers = await getHeaders();
+            addLog('Request Headers (Context):', 'data', headers);
+
+            const response = await fetchApi(url);
+            addLog(`Response Status: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+            
             const result = await unwrapResult(response);
             
+            console.log('[DEBUG] Journal Entries Response:', result);
+            setRawResponse(result);
+            
+            // Backend now exposes `DebugQuery` - let's log it!
+            if (result.debugQuery) {
+                addLog('Backend Executed MongoDB Query:', 'data', result.debugQuery);
+            } else {
+                addLog('Response Data Received (No Debug Info):', 'data', result);
+            }
+
             // Backend now returns { items: [], totalCount: 0, page: 1, pageSize: 20 }
-            setEntries(result.items);
-            setTotalCount(result.totalCount);
-        } catch (error) {
+            setEntries(result.items || []);
+            setTotalCount(result.totalCount || 0);
+            
+            if (result.items && result.items.length > 0) {
+                addLog(`Successfully loaded ${result.items.length} entries.`, 'success');
+            } else {
+                addLog('No entries found in response.', 'info');
+            }
+            
+        } catch (error: any) {
             console.error('Failed to fetch Journal Entries', error);
+            setRawResponse({ error: String(error) });
+            addLog(`Fetch Failed: ${error.message}`, 'error', error);
         } finally {
             setIsLoading(false);
+            addLog('Fetch Process Completed.', 'info');
         }
     };
 
@@ -83,9 +137,23 @@ const JournalEntryList = () => {
 
     return (
         <div className={`p-6 max-w-6xl mx-auto`}>
+            {/* Debug Toggle - Visible Block */}
+            <ConsoleSimulator 
+                logs={debugLogs} 
+                isVisible={showDebug} 
+                isLoading={isLoading} 
+                title="DATA FETCH DEBUGGER"
+            />
+
             <div className={`flex items-center justify-between mb-6`}>
                 <h1 className={`text-2xl font-bold ${global.text}`}>Journal Entries</h1>
                 <div className="flex items-center gap-2">
+                     <button 
+                        onClick={() => setShowDebug(!showDebug)}
+                        className="px-3 py-1 rounded bg-gray-200 text-gray-800 text-xs font-bold mr-2 border border-gray-400"
+                    >
+                        {showDebug ? 'HIDE DEBUG' : 'SHOW DEBUG'}
+                    </button>
                     <button
                         onClick={() => navigate('/finance/journal-entry')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white transition-colors ${styles.bg} ${styles.hover}`}
@@ -164,6 +232,7 @@ const JournalEntryList = () => {
                                         <th className={`pb-3 font-medium ${global.textSecondary}`}>Description</th>
                                         <th className={`pb-3 font-medium ${global.textSecondary}`}>Total Amount</th>
                                         <th className={`pb-3 font-medium ${global.textSecondary}`}>Status</th>
+                                        <th className="w-10"></th>
                                     </tr>
                                 </thead>
                                 <tbody className={`divide-y ${global.border}`}>
@@ -195,6 +264,18 @@ const JournalEntryList = () => {
                                                         <span className={`px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300`}>
                                                             Posted
                                                         </span>
+                                                    </td>
+                                                    <td className="py-3 pr-2">
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigate(`/finance/journal-entry/${entry.id}`);
+                                                            }}
+                                                            className={`p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors opacity-0 group-hover:opacity-100`}
+                                                            title="Edit Journal Entry"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </button>
                                                     </td>
                                                 </tr>
                                                 {isExpanded && (

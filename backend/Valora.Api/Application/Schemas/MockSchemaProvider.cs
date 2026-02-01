@@ -1,6 +1,4 @@
-using Lab360.Application.Schemas;
-
-namespace Lab360.Application.Schemas
+namespace Valora.Api.Application.Schemas
 {
     public static class MockSchemaProvider
     {

@@ -1,6 +1,8 @@
 using Lab360.Application.Common.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using Valora.Api.Infrastructure.Persistence;
 
 namespace Valora.Api.Application.Dynamic.Queries.GetEntity;
@@ -8,10 +10,12 @@ namespace Valora.Api.Application.Dynamic.Queries.GetEntity;
 public class GetEntityQueryHandler : IRequestHandler<GetEntityQuery, ApiResult>
 {
     private readonly PlatformDbContext _dbContext;
+    private readonly MongoDbContext _mongoDb;
 
-    public GetEntityQueryHandler(PlatformDbContext dbContext)
+    public GetEntityQueryHandler(PlatformDbContext dbContext, MongoDbContext mongoDb)
     {
         _dbContext = dbContext;
+        _mongoDb = mongoDb;
     }
 
     public async Task<ApiResult> Handle(GetEntityQuery request, CancellationToken cancellationToken)
@@ -20,6 +24,38 @@ public class GetEntityQueryHandler : IRequestHandler<GetEntityQuery, ApiResult>
         {
             return ApiResult.Fail(request.TenantId, request.Module, "get-by-id", new ApiError("Validation", "Invalid ID format"));
         }
+
+        // --- SQL ERP MODULES SUPPORT (READ FROM MONGO READ-MODEL) ---
+        if (string.Equals(request.Module, "SalesOrder", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(request.Module, "Material", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(request.Module, "CostCenter", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(request.Module, "GLAccount", StringComparison.OrdinalIgnoreCase))
+        {
+            var collectionName = $"Entity_{request.Module}";
+            var collection = _mongoDb.GetCollection<BsonDocument>(collectionName);
+            var filter = Builders<BsonDocument>.Filter.Eq("_id", request.Id); // ID is stored as string in Mongo usually, but let's check projection
+            
+            // Try string first, then Guid if needed, but projection usually converts Guid to String
+            var doc = await collection.Find(filter).FirstOrDefaultAsync(cancellationToken);
+
+            if (doc == null)
+            {
+                 return ApiResult.Fail(request.TenantId, request.Module, "get-by-id", new ApiError("NotFound", $"{request.Module} not found (Read Model)"));
+            }
+
+            // Convert BsonDocument to Dictionary
+            var resultDict = ConvertBsonDocument(doc);
+            
+            // Normalize ID
+            if (resultDict.ContainsKey("_id"))
+            {
+                resultDict["Id"] = resultDict["_id"];
+                resultDict.Remove("_id");
+            }
+            
+            return ApiResult.Ok(request.TenantId, request.Module, "get-by-id", resultDict);
+        }
+        // --- SQL ERP MODULES END ---
 
         // 1. Get Object Definition
         var definition = await _dbContext.ObjectDefinitions
@@ -48,7 +84,7 @@ public class GetEntityQueryHandler : IRequestHandler<GetEntityQuery, ApiResult>
             .ToListAsync(cancellationToken);
 
         // 4. Pivot to Dictionary
-        var dict = new Dictionary<string, object>
+        var dict = new Dictionary<string, object?>
         {
             { "Id", record.Id },
             { "TenantId", record.TenantId },
@@ -72,5 +108,29 @@ public class GetEntityQueryHandler : IRequestHandler<GetEntityQuery, ApiResult>
         }
 
         return ApiResult.Ok(request.TenantId, request.Module, "get-by-id", dict);
+    }
+
+    private Dictionary<string, object?> ConvertBsonDocument(BsonDocument doc)
+    {
+        return doc.ToDictionary(x => x.Name, x => ConvertBsonValue(x.Value));
+    }
+
+    private object? ConvertBsonValue(BsonValue value)
+    {
+        switch (value.BsonType)
+        {
+            case BsonType.Double: return value.AsDouble;
+            case BsonType.String: return value.AsString;
+            case BsonType.Document: return ConvertBsonDocument(value.AsBsonDocument);
+            case BsonType.Array: return value.AsBsonArray.Select(ConvertBsonValue).ToList();
+            case BsonType.Int32: return value.AsInt32;
+            case BsonType.Int64: return value.AsInt64;
+            case BsonType.Boolean: return value.AsBoolean;
+            case BsonType.DateTime: return value.ToUniversalTime();
+            case BsonType.Decimal128: return (decimal)value.AsDecimal128;
+            case BsonType.ObjectId: return value.ToString();
+            case BsonType.Null: return null;
+            default: return value.ToString();
+        }
     }
 }

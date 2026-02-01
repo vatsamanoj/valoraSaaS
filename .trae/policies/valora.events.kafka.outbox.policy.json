@@ -1,178 +1,150 @@
 {
-  "module": {
-    "name": "Eventing-Outbox-Kafka",
-    "type": "Infrastructure",
-    "priority": 8,
-    "description": "Transactional Outbox pattern with Kafka-based event propagation"
-  },
-
+  "policyId": "VALORA-EVENTING-OUTBOX-KAFKA-HARDENED-001",
+  "version": "2.0",
+  "severity": "CRITICAL",
+  "scope": [
+    "Domain",
+    "Application",
+    "Infrastructure",
+    "KafkaConsumer",
+    "KafkaProducer",
+    "OutboxProcessor",
+    "ProjectionService",
+    "BackgroundWorker"
+  ],
+  "description": "Hardened enforcement policy for Transactional Outbox + Kafka + Idempotent Consumers + Safe Offsets + No Hardcoded Topics + Financial-grade reliability.",
   "corePrinciples": {
     "sqlIsSourceOfTruth": true,
     "eventsAreFacts": true,
     "outboxIsMandatory": true,
-    "noDirectKafkaWritesFromBusinessLogic": true
+    "noDirectKafkaWritesFromBusinessLogic": true,
+    "atLeastOnceDelivery": true,
+    "idempotentConsumersRequired": true
   },
-
-  "outboxPattern": {
-    "table": "OutboxEvent",
-    "ownership": "Same transaction as business data",
-    "rules": [
-      "Outbox row written in SAME DB transaction",
-      "No Kafka publish inside domain logic",
-      "Outbox guarantees atomicity",
-      "Event emission is async and reliable"
-    ]
+  "rules": [
+    {
+      "id": "FORBID-DIRECT-KAFKA-PUBLISH",
+      "type": "forbid",
+      "match": { "pattern": "ProduceAsync|Produce\\(|PublishAsync\\(|Publish\\(|KafkaProducer|IProducer<" },
+      "message": "Direct Kafka publishing from business/application code is forbidden. All events must go through Outbox."
+    },
+    {
+      "id": "REQUIRE-OUTBOX-INSERT",
+      "type": "require",
+      "match": { "pattern": "Outbox|OutboxEvent|OutboxMessage|OutboxMessages" },
+      "message": "Any business transaction emitting events must insert an Outbox row in the same DB transaction."
+    },
+    {
+      "id": "FORBID-HARDCODED-TOPIC-SUBSCRIBE",
+      "type": "forbid",
+      "match": { "pattern": "Subscribe\\s*\\(\\s*new\\s*\\[\\]\\s*\\{" },
+      "message": "Hardcoded Kafka topic lists are forbidden. Use prefix subscription or dynamic discovery."
+    },
+    {
+      "id": "FORBID-STATIC-TOPIC-REGISTRY",
+      "type": "forbid",
+      "match": { "pattern": "class\\s+.*Topics|static\\s+class\\s+.*Topics" },
+      "message": "Static topic registries are forbidden. Consumers must auto-adapt to producer topics."
+    },
+    {
+      "id": "REQUIRE-AUTO-SUBSCRIBE",
+      "type": "require",
+      "anyOf": [
+        { "pattern": "Subscribe\\s*\\(.*\\*" },
+        { "pattern": "Subscribe\\s*\\(.*Discover" },
+        { "pattern": "Subscribe\\s*\\(.*Outbox" },
+        { "pattern": "Subscribe\\s*\\(.*GetTopics" }
+      ],
+      "message": "Kafka consumers must subscribe using wildcard prefix or dynamic topic discovery."
+    },
+    {
+      "id": "REQUIRE-CONSUMER-IDEMPOTENCY",
+      "type": "require",
+      "match": { "pattern": "ProcessedEvents|IsAlreadyProcessed|Idempotent|Dedup" },
+      "message": "All consumers must implement idempotency using ProcessedEvents / deduplication store."
+    },
+    {
+      "id": "FORBID-OFFSET-COMMIT-BEFORE-DB",
+      "type": "forbid",
+      "match": { "pattern": "Commit\\(|CommitAsync\\(" },
+      "when": { "notContains": ["SaveChanges", "CommitTransaction"] },
+      "message": "Kafka offset must not be committed before DB transaction commits."
+    },
+    {
+      "id": "REQUIRE-OUTBOX-RETRY-METADATA",
+      "type": "require",
+      "match": { "pattern": "RetryCount|NextRetryAt|LastError" },
+      "message": "Outbox must support retries with backoff using RetryCount, NextRetryAt, and LastError."
+    },
+    {
+      "id": "REQUIRE-DEADLETTER-STATE",
+      "type": "require",
+      "match": { "pattern": "DeadLetter|DLQ" },
+      "message": "Outbox must support DeadLetter state for poison messages."
+    },
+    {
+      "id": "FORBID-EVENT-MUTATION",
+      "type": "forbid",
+      "match": { "pattern": "Payload\\s*=|Event\\.Payload\\s*=" },
+      "message": "Event payload must be immutable after Outbox insert."
+    },
+    {
+      "id": "REQUIRE-TENANT-ID-IN-EVENT",
+      "type": "require",
+      "match": { "pattern": "TenantId" },
+      "message": "Every event must contain TenantId. Cross-tenant events are forbidden."
+    },
+    {
+      "id": "FORBID-CONSUMER-UPDATING-SQL-SOURCE",
+      "type": "forbid",
+      "match": { "pattern": "SaveChanges|SaveChangesAsync" },
+      "when": { "filePathContains": ["Consumer", "Projection", "ReadModel"] },
+      "message": "Consumers and projections are forbidden from updating SQL source-of-truth tables."
+    },
+    {
+      "id": "REQUIRE-PROJECTION-NO-TRACKING",
+      "type": "require",
+      "match": { "pattern": "AsNoTracking\\(|UseQueryTrackingBehavior\\s*\\(\\s*QueryTrackingBehavior\\.NoTracking" },
+      "message": "Projection reads must use AsNoTracking or DbContext must be globally configured as NoTracking."
+    },
+    {
+      "id": "REQUIRE-OUTBOX-PROCESSOR",
+      "type": "require",
+      "match": { "pattern": "OutboxProcessor|OutboxPublisher|OutboxDispatcher" },
+      "message": "System must contain an OutboxProcessor that publishes events from Outbox to Kafka."
+    },
+    {
+      "id": "REQUIRE-PARTITION-KEY",
+      "type": "require",
+      "match": { "pattern": "PartitionKey|AggregateId" },
+      "message": "Kafka messages must use AggregateId (or TenantId+AggregateId) as partition key to guarantee ordering."
+    },
+    {
+      "id": "REQUIRE-EVENT-VERSIONING",
+      "type": "require",
+      "match": { "pattern": "EventVersion|SchemaVersion|Version" },
+      "message": "All events must be versioned for schema evolution."
+    },
+    {
+      "id": "REQUIRE-STARTUP-TOPIC-GUARD",
+      "type": "require",
+      "match": { "pattern": "StartupTopicGuard|ValidateSubscribedTopics|EnsureAllTopicsSubscribed" },
+      "message": "Application must validate at startup that all produced topics are subscribed."
+    }
+  ],
+  "enforcement": {
+    "onViolation": "REJECT_CODE",
+    "onWarning": "WARN",
+    "logLevel": "ERROR"
   },
-
-  "outboxTableSchema": {
-    "requiredFields": [
-      "OutboxId",
-      "TenantId",
-      "AggregateType",
-      "AggregateId",
-      "EventType",
-      "Payload",
-      "Status",
-      "CreatedAt",
-      "ProcessedAt"
-    ],
-    "rules": [
-      "Payload is immutable",
-      "TenantId mandatory",
-      "Status transitions only forward"
-    ]
-  },
-
-  "outboxLifecycle": {
-    "states": [
-      "Pending",
-      "Published",
-      "Failed"
-    ],
-    "rules": [
-      "Pending events are retried",
-      "Published events are never reprocessed",
-      "Failed events go to dead-letter handling"
-    ]
-  },
-
-  "eventEmission": {
-    "producer": "OutboxProcessor",
-    "rules": [
-      "Processor reads only Pending events",
-      "Publishing is idempotent",
-      "Offset stored after successful publish"
-    ]
-  },
-
-  "eventStructure": {
-    "requiredFields": [
-      "EventId",
-      "EventType",
-      "TenantId",
-      "Module",
-      "AggregateType",
-      "AggregateId",
-      "OccurredAt",
-      "Version"
-    ],
-    "rules": [
-      "Event schema versioned",
-      "Backward compatibility enforced"
-    ]
-  },
-
-  "topicStrategy": {
-    "pattern": "tenant.module.event",
-    "examples": [
-      "lab003.fi.posted",
-      "lab003.sd.invoiced",
-      "lab003.mm.grn",
-      "lab003.hcm.payroll.posted",
-      "lab003.eav.schema.changed"
-    ],
-    "rules": [
-      "TenantId must be in topic",
-      "No cross-tenant topics",
-      "Module-specific topics only"
-    ]
-  },
-
-  "consumers": {
-    "allowed": [
-      "MongoReadModelBuilder",
-      "SearchIndexer",
-      "NotificationEngine",
-      "AnalyticsPipeline"
-    ],
-    "rules": [
-      "Consumers are idempotent",
-      "Consumers never update SQL source tables",
-      "Consumers can rebuild state via replay"
-    ]
-  },
-
-  "mongoIntegration": {
-    "purpose": "Read-optimized denormalized views",
-    "rules": [
-      "Mongo updated ONLY from Kafka",
-      "One document per aggregate",
-      "No transactional dependency on Mongo"
-    ]
-  },
-
-  "failureHandling": {
-    "rules": [
-      "Retry with exponential backoff",
-      "Dead-letter queue mandatory",
-      "Failed events visible in admin UI"
-    ]
-  },
-
-  "orderingAndConsistency": {
-    "rules": [
-      "Ordering guaranteed per AggregateId",
-      "Exactly-once delivery preferred",
-      "Duplicate events safely ignored"
-    ]
-  },
-
-  "security": {
-    "rules": [
-      "TenantId validated before publish",
-      "No PII unless encrypted",
-      "Outbox access restricted to service role"
-    ]
-  },
-
-  "compliance": {
-    "auditLog": "Mandatory",
-    "rules": [
-      "Outbox insert audited",
-      "Event publish audited",
-      "Replay actions logged"
-    ]
-  },
-
-  "aiCodingRules": {
-    "mustAlways": [
-      "Write OutboxEvent in same DB transaction",
-      "Never publish to Kafka from domain handler",
-      "Include TenantId in every event",
-      "Make OutboxProcessor idempotent"
-    ],
-    "mustNever": [
-      "Emit Kafka event before DB commit",
-      "Skip outbox for convenience",
-      "Update business tables from consumers",
-      "Share tenant data across events"
-    ]
-  },
-
   "keyLaws": [
     "If it is not in the Outbox, it did not happen",
-    "Events are consequences, not commands",
-    "Publishing is async, consistency is eventual",
-    "Outbox protects truth from failure"
-  ]
+    "Events are facts, not commands",
+    "Outbox is the source of Kafka truth",
+    "At-least-once delivery + Idempotent consumers = Effectively-once processing",
+    "Never commit Kafka offset before DB commit",
+    "Consumers must adapt to producers automatically",
+    "Correctness > Consistency > Performance"
+  ],
+  "rationale": "Prevents silent data loss, enforces transactional outbox, guarantees reliable Kafka event delivery, enforces idempotent consumption, and makes the platform safe under crashes, retries, and concurrency."
 }

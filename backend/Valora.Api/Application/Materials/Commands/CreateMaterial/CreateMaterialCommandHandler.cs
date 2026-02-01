@@ -3,6 +3,8 @@ using MediatR;
 using Valora.Api.Domain.Entities.Materials;
 using Valora.Api.Infrastructure.Persistence;
 
+using Microsoft.EntityFrameworkCore;
+
 namespace Valora.Api.Application.Materials.Commands.CreateMaterial;
 
 public class CreateMaterialCommandHandler : IRequestHandler<CreateMaterialCommand, ApiResult>
@@ -19,6 +21,15 @@ public class CreateMaterialCommandHandler : IRequestHandler<CreateMaterialComman
         if (string.IsNullOrWhiteSpace(request.MaterialCode))
         {
             return ApiResult.Fail(request.TenantId, "MM", "create-material", new ApiError("Validation", "Material Code is required."));
+        }
+
+        var existing = await _dbContext.MaterialMasters
+            .FirstOrDefaultAsync(m => m.TenantId == request.TenantId && m.MaterialCode == request.MaterialCode, cancellationToken);
+        
+        if (existing != null)
+        {
+             // Idempotent success (return existing ID)
+             return ApiResult.Ok(request.TenantId, "MM", "create-material", existing.Id);
         }
 
         var material = new MaterialMaster

@@ -1,4 +1,4 @@
-namespace Lab360.Application.Schemas
+namespace Valora.Api.Application.Schemas
 {
     // Deprecated - replaced by string constants in ModuleSchema.cs for JSON compatibility
     /*

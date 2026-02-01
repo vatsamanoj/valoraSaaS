@@ -40,9 +40,42 @@ public class PlatformDbContext : DbContext
     public DbSet<Employee> Employees { get; set; }
     public DbSet<EmployeePayroll> EmployeePayrolls { get; set; }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        // Interceptor removed in favor of explicit SaveChangesAsync logic
+        base.OnConfiguring(optionsBuilder);
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        foreach (var entry in ChangeTracker.Entries<Valora.Api.Domain.Common.IAggregateRoot>())
+        {
+            if (entry.State == EntityState.Modified || entry.State == EntityState.Added)
+            {
+                entry.Entity.Version++;
+            }
+        }
+        return await base.SaveChangesAsync(cancellationToken);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Global Configuration for AuditableEntity
+        // Apply xmin concurrency token to ALL entities inheriting from AuditableEntity
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(Valora.Api.Domain.Common.AuditableEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                // Map the CLR property 'Version' to a standard integer column
+                modelBuilder.Entity(entityType.ClrType)
+                    .Property("Version")
+                    .IsConcurrencyToken();
+                    
+                // Removed xmin mapping to allow application-side versioning
+            }
+        }
 
         modelBuilder.Entity<OutboxMessageEntity>()
             .HasIndex(x => new { x.Status, x.CreatedAt });

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useFieldArray, Control, UseFormRegister, FieldValues, UseFormWatch, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
+import { useFieldArray, Control, UseFormRegister, FieldValues, UseFormWatch, UseFormSetValue, UseFormGetValues, Controller } from 'react-hook-form';
 import { ModuleSchema, GridConfig, GridColumnConfig } from '../types/schema';
 import { useTheme } from '../context/ThemeContext';
 import { Trash2, Plus } from 'lucide-react';
 import { fetchApi, unwrapResult } from '../utils/api';
+import SearchableSelect from './SearchableSelect';
 
 interface FormGridProps {
   control: Control<FieldValues>;
@@ -56,9 +57,17 @@ const FormGrid: React.FC<FormGridProps> = ({
             lookupModule: ui?.lookup,
             lookupField: ui?.lookupField,
             displayField: ui?.displayField,
+            searchStrategy: ui?.searchStrategy,
+            searchPattern: ui?.searchPattern,
             mapping: ui?.mapping
         };
     }
+    
+    // Normalize "key" to "field" if present (support both styles)
+    if ((col as any).key && !col.field) {
+        return { ...col, field: (col as any).key };
+    }
+
     return col;
   };
 
@@ -74,14 +83,17 @@ const FormGrid: React.FC<FormGridProps> = ({
 
       for (const rawCol of config.columns) {
         const col = getColumnConfig(rawCol);
-        if (col.type === 'lookup' && col.lookupModule) {
+        if (col.type?.toLowerCase() === 'lookup' && col.lookupModule) {
           try {
             const res = await fetchApi('/api/query/ExecuteQuery', {
               method: 'POST',
               headers: { ...headers, 'Content-Type': 'application/json' },
               body: JSON.stringify({ 
                 Module: col.lookupModule,
-                Options: { PageSize: 1000 } // Load all for now
+                Options: { 
+                    PageSize: 1000,
+                    Filters: (col as any).filter 
+                }
               })
             });
             const result = await unwrapResult<any>(res);
@@ -257,30 +269,35 @@ const FormGrid: React.FC<FormGridProps> = ({
                   const col = getColumnConfig(rawCol);
                   const isReadOnly = readOnly || col.readOnly;
                   
-                  if (col.type === 'lookup') {
-                      const listId = `list-${name}-${index}-${col.field}`;
+                  if (col.type?.toLowerCase() === 'lookup') {
                       const data = lookupData[col.field] || [];
+                      const options = data.map(opt => ({
+                          value: col.lookupField ? opt[col.lookupField] : (opt.Name || opt.TestName || opt.Id),
+                          label: col.displayField ? opt[col.displayField] : (opt.Name || opt.TestName || opt.Id),
+                          subLabel: opt.Code || opt.Description
+                      }));
+
                       return (
                         <td key={`${item.id}-${colIdx}`} className="px-2 py-2">
-                             <input
-                                list={listId}
-                                {...register(`${name}.${index}.${col.field}`, {
-                                    onChange: (e) => handleLookupChange(index, col, e.target.value)
-                                })}
-                                onKeyDown={handleKeyDown}
-                                data-skip-focus={col.skipFocus || undefined}
-                                disabled={isReadOnly}
-                                className={`w-full px-2 py-1 text-sm border-0 bg-transparent focus:ring-1 focus:ring-blue-500 rounded ${global.text}`}
-                                placeholder="Search..."
-                                autoComplete="off"
+                             <Controller
+                                name={`${name}.${index}.${col.field}`}
+                                control={control}
+                                render={({ field }) => (
+                                    <SearchableSelect
+                                        id={`${name}-${index}-${col.field}`}
+                                        value={field.value}
+                                        onChange={(val) => {
+                                            field.onChange(val);
+                                            handleLookupChange(index, col, val);
+                                        }}
+                                        options={options}
+                                        placeholder="Search..."
+                                        className="w-full min-w-[150px]"
+                                        searchStrategy={col.searchStrategy}
+                                        searchPattern={col.searchPattern}
+                                    />
+                                )}
                              />
-                             <datalist id={listId}>
-                                 {data.map((opt, i) => {
-                                     const val = col.lookupField ? opt[col.lookupField] : (opt.Name || opt.TestName || opt.Id);
-                                     const display = col.displayField ? opt[col.displayField] : (opt.Name || opt.TestName || opt.Id);
-                                     return <option key={i} value={val}>{display}</option>;
-                                 })}
-                             </datalist>
                         </td>
                       );
                   }

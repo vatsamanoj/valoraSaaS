@@ -1,0 +1,13 @@
+{
+  "failures": [
+    {
+      "FailureId": "F-0001",
+      "Type": "Runtime",
+      "File": "KafkaConsumer.cs",
+      "Message": "KafkaConsumer rebalance loop: 'Broker: Group member needs a valid member ID'. Cannot join group.",
+      "FirstSeenAt": "2026-01-29T18:05:00Z",
+      "Status": "Fixed",
+      "FixAttempts": 4
+    }
+  ]
+}

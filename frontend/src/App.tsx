@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-do
 import PlatformStudio from './components/PlatformStudio'
 import GenericObjectForm from './components/GenericObjectForm'
 import SystemLogViewer from './components/SystemLogViewer'
+import { SystemEventsViewer } from './components/SystemEventsViewer'
 import GenericObjectList from './components/GenericObjectList'
 import AiUsageViewer from './components/AiUsageViewer'
 import TranslationManager from './components/TranslationManager'
@@ -273,6 +274,9 @@ const AppLayout = ({ onLogout }: { onLogout: () => void }) => {
                         <SidebarLink to="/finance/journal-entries" icon={Activity} label="Journal Entries" />
                         <SidebarLink to="/finance/journal-entry" icon={Plus} label="New Journal" />
                         <SidebarLink to="/hcm/payroll" icon={Briefcase} label="Secure Payroll" />
+                        <SidebarLink to="/app/SalesOrder" icon={Box} label="Sales Orders" />
+                        <SidebarLink to="/app/Material" icon={Box} label="Materials" />
+                        <SidebarLink to="/app/CostCenter" icon={Building} label="Cost Centers" />
                     </div>
 
                     <div className={`pb-4 mb-4 ${global.border} border-b`}>
@@ -382,6 +386,7 @@ const AppLayout = ({ onLogout }: { onLogout: () => void }) => {
                             <SidebarLink to="/studio" icon={LayoutIcon} label={t('nav.studio')} />
                             <SidebarLink to="/studio/translations" icon={Globe} label={t('nav.translations')} />
                             <SidebarLink to="/studio/logs" icon={Activity} label={t('nav.systemLogs')} />
+                            <SidebarLink to="/studio/events" icon={Activity} label="Kafka Events (Live)" />
                             <SidebarLink to="/studio/ai-usage" icon={Brain} label={t('nav.aiDashboard')} />
                             {canAccessPlatformAdmin && (
                                 <>
@@ -416,6 +421,7 @@ const AppLayout = ({ onLogout }: { onLogout: () => void }) => {
                     {/* Standard Pages wrapped in Scrollable */}
                     <Route path="/" element={<div className={`p-10 text-center ${global.textSecondary}`}>Select a module to begin.</div>} />
                     <Route path="/studio/logs" element={<Scrollable><SystemLogViewer /></Scrollable>} />
+                    <Route path="/studio/events" element={<Scrollable><SystemEventsViewer /></Scrollable>} />
                     <Route path="/studio/ai-usage" element={<Scrollable><AiUsageViewer /></Scrollable>} />
                     <Route path="/app/:objectCode" element={<GenericObjectList />} />
                     <Route path="/app/:objectCode/new" element={<Scrollable><GenericObjectForm /></Scrollable>} />
@@ -432,6 +438,7 @@ const AppLayout = ({ onLogout }: { onLogout: () => void }) => {
                     <Route path="/finance/gl-accounts" element={<Scrollable><GLAccountList /></Scrollable>} />
                     <Route path="/finance/journal-entries" element={<Scrollable><JournalEntryList /></Scrollable>} />
                     <Route path="/finance/journal-entry" element={<Scrollable><CreateJournalEntry /></Scrollable>} />
+                    <Route path="/finance/journal-entry/:id" element={<Scrollable><CreateJournalEntry /></Scrollable>} />
 
                     {/* HCM Routes */}
                     <Route path="/hcm/payroll" element={<Scrollable><EmployeePayrollForm /></Scrollable>} />

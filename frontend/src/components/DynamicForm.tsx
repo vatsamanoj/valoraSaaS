@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useForm, FieldValues } from 'react-hook-form';
+import { useForm, FieldValues, Controller } from 'react-hook-form';
 import { ModuleSchema, FieldRule, LayoutSection } from '../types/schema';
 import { Calendar, User, Phone, Mail, Activity } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { fetchApi, unwrapResult } from '../utils/api';
 import FormGrid from './FormGrid';
+import SearchableSelect from './SearchableSelect';
 
 interface DynamicFormProps {
   schema: ModuleSchema;
@@ -16,6 +17,25 @@ interface DynamicFormProps {
 
 const DynamicForm: React.FC<DynamicFormProps> = ({ schema, onSubmit, isLoading = false, initialData, readOnly = false }) => {
   const { global, styles: theme, isDark, t, currency } = useTheme();
+
+  // Pre-process initialData for Date fields to ensure YYYY-MM-DD format
+  const formattedInitialData = React.useMemo(() => {
+    if (!initialData || !schema?.fields) return initialData;
+    const copy = { ...initialData };
+    Object.keys(schema.fields).forEach(key => {
+        const rule = schema.fields[key];
+        if (rule.ui?.type?.toLowerCase() === 'date' && copy[key]) {
+            try {
+                const d = new Date(copy[key]);
+                if (!isNaN(d.getTime())) {
+                    copy[key] = d.toISOString().split('T')[0];
+                }
+            } catch {}
+        }
+    });
+    return copy;
+  }, [initialData, schema]);
+
   const {
     register,
     control,
@@ -25,7 +45,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ schema, onSubmit, isLoading =
     getValues,
     formState: { errors },
   } = useForm<FieldValues>({
-    defaultValues: initialData || {},
+    defaultValues: formattedInitialData || {},
   });
 
   const [gridSchemas, setGridSchemas] = useState<Record<string, ModuleSchema>>({});
@@ -104,14 +124,17 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ schema, onSubmit, isLoading =
       if (!schema?.fields) return;
 
       for (const [fieldName, rule] of Object.entries(schema.fields)) {
-        if (rule.ui?.type === 'lookup' && (rule.ui as any).lookupModule) {
+        if (rule.ui?.type?.toLowerCase() === 'lookup' && (rule.ui as any).lookupModule) {
            try {
              const res = await fetchApi('/api/query/ExecuteQuery', {
                method: 'POST',
                headers: { ...headers, 'Content-Type': 'application/json' },
                body: JSON.stringify({ 
                  Module: (rule.ui as any).lookupModule,
-                 Options: { PageSize: 1000 } 
+                 Options: { 
+                    PageSize: 1000,
+                    Filters: (rule.ui as any).filter 
+                 } 
                })
              });
              const result = await unwrapResult<any>(res);
@@ -246,16 +269,26 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ schema, onSubmit, isLoading =
     const { ui, required, maxLength } = rule;
     const label = getFieldLabel(fieldName, rule);
     const placeholder = ui?.placeholder || t('common.enter', { field: label });
-    const rawType = ui?.type || 'text';
+    const rawType = (ui?.type || 'text').toLowerCase();
     const inputType = rawType === 'money' ? 'currency' : rawType;
 
     // Handle Grid/Array type fields (Inline rendering)
     if (inputType === 'grid' || (rule as any).columns) {
+        let columns = (ui as any)?.columns || (ui?.gridConfig as any)?.columns;
+        
+        if (!columns && (rule as any).columns) {
+             if (Array.isArray((rule as any).columns)) {
+                 columns = (rule as any).columns;
+             } else {
+                 columns = Object.keys((rule as any).columns);
+             }
+        }
+
         const gridConfig = {
             ...(ui?.gridConfig || {}),
             dataSource: fieldName,
             // If columns are not explicitly listed in ui, use keys from columns definition
-            columns: (ui as any)?.columns || (ui?.gridConfig as any)?.columns || ((rule as any).columns ? Object.keys((rule as any).columns) : []),
+            columns: columns || [],
             allowAdd: (ui as any)?.allowAdd ?? true,
             allowDelete: (ui as any)?.allowDelete ?? true,
             allowEdit: (ui as any)?.allowEdit ?? true,
@@ -343,28 +376,32 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ schema, onSubmit, isLoading =
           );
         
         case 'lookup':
-           const listId = `list-${schema.module}-${fieldName}`;
            const data = lookupData[fieldName] || [];
+           const options = data.map(opt => ({
+               value: (ui as any).lookupField ? opt[(ui as any).lookupField] : (opt.Name || opt.Id),
+               label: opt.Name || opt.Code || opt.Id,
+               subLabel: opt.Code || opt.Description
+           }));
+
            return (
             <div className="relative">
-              <input
-                list={listId}
-                {...register(fieldName, validationRules)}
-                className={commonClasses}
-                placeholder={placeholder}
-                disabled={readOnly}
-                autoComplete="off"
-                data-skip-focus={ui?.skipFocus || undefined}
+              <Controller
+                name={fieldName}
+                control={control}
+                rules={validationRules}
+                render={({ field }) => (
+                    <SearchableSelect
+                        id={fieldName}
+                        value={field.value}
+                        onChange={field.onChange}
+                        options={options}
+                        placeholder={placeholder}
+                        className="w-full"
+                        searchStrategy={(ui as any).searchStrategy}
+                        searchPattern={(ui as any).searchPattern}
+                    />
+                )}
               />
-               <datalist id={listId}>
-                   {data.map((opt, i) => {
-                       const val = (ui as any).lookupField ? opt[(ui as any).lookupField] : (opt.Name || opt.Id);
-                       return <option key={i} value={val} />;
-                   })}
-               </datalist>
-               <div className={`absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none ${global.textSecondary}`}>
-                  <User size={16} />
-                </div>
             </div>
            );
 

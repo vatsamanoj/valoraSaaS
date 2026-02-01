@@ -1,8 +1,9 @@
 // using Lab360.Application.Infrastructure.Metadata.Entities; // Removed missing reference
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Valora.Api.Application.Schemas.TemplateConfig;
 
-namespace Lab360.Application.Schemas
+namespace Valora.Api.Application.Schemas
 {
     public static class ModuleSchemaJson
     {
@@ -10,7 +11,14 @@ namespace Lab360.Application.Schemas
             [property: JsonPropertyName("objectType")] string? ObjectType,
             [property: JsonPropertyName("fields")] JsonElement Fields,
             [property: JsonPropertyName("uniqueConstraints")] List<string[]>? UniqueConstraints = null,
-            [property: JsonPropertyName("ui")] ModuleUi? Ui = null
+            [property: JsonPropertyName("ui")] ModuleUi? Ui = null,
+            [property: JsonPropertyName("shouldPost")] bool ShouldPost = false, // 🔥 NEW
+            
+            // ===== NEW: Template Configuration Extensions =====
+            [property: JsonPropertyName("calculationRules")] CalculationRulesConfig? CalculationRules = null,
+            [property: JsonPropertyName("documentTotals")] DocumentTotalsConfig? DocumentTotals = null,
+            [property: JsonPropertyName("attachmentConfig")] AttachmentConfig? AttachmentConfig = null,
+            [property: JsonPropertyName("cloudStorage")] CloudStorageConfig? CloudStorage = null
         );
 
         public static ModuleSchema FromRawJson(
@@ -38,7 +46,12 @@ namespace Lab360.Application.Schemas
                 ObjectType: body.ObjectType ?? "Master",
                 Fields: flattenedFields,
                 UniqueConstraints: body.UniqueConstraints,
-                Ui: body.Ui
+                Ui: body.Ui,
+                ShouldPost: body.ShouldPost,
+                CalculationRules: body.CalculationRules,
+                DocumentTotals: body.DocumentTotals,
+                AttachmentConfig: body.AttachmentConfig,
+                CloudStorage: body.CloudStorage
             );
         }
 
@@ -145,12 +158,17 @@ namespace Lab360.Application.Schemas
             // we can't use the DTO for serialization easily if DTO properties are JsonElement.
             // We should use an anonymous object or a separate WriteDto.
 
-            var dto = new 
+            var dto = new
             {
                 objectType = schema.ObjectType,
                 fields = schema.Fields,
                 uniqueConstraints = schema.UniqueConstraints,
-                ui = schema.Ui
+                ui = schema.Ui,
+                shouldPost = schema.ShouldPost,
+                calculationRules = schema.CalculationRules,
+                documentTotals = schema.DocumentTotals,
+                attachmentConfig = schema.AttachmentConfig,
+                cloudStorage = schema.CloudStorage
             };
 
             return JsonSerializer.Serialize(

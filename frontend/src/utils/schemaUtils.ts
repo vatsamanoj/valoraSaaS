@@ -111,6 +111,20 @@ export const normalizeSchema = (data: any): ModuleSchema => {
                     if (field.MaxLength !== undefined && field.maxLength === undefined) field.maxLength = field.MaxLength;
                     if (field.Ui && !field.ui) field.ui = field.Ui;
 
+                    // Promote root-level field properties to UI hint if missing (Normalization)
+                    if (field.type && (!field.ui || !field.ui.type)) {
+                        if (!field.ui) field.ui = {};
+                        field.ui.type = field.type;
+                    }
+                    if (field.label && (!field.ui || !field.ui.label)) {
+                        if (!field.ui) field.ui = {};
+                        field.ui.label = field.label;
+                    }
+                    if (field.placeholder && (!field.ui || !field.ui.placeholder)) {
+                        if (!field.ui) field.ui = {};
+                        field.ui.placeholder = field.placeholder;
+                    }
+
                     // Normalize UI props
                     if (field.ui) {
                         const newUi = { ...field.ui };

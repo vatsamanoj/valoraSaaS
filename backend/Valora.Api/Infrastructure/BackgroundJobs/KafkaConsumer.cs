@@ -5,7 +5,7 @@ using System.Text.Json;
 using Valora.Api.Infrastructure.Persistence;
 using Valora.Api.Infrastructure.Services;
 using Valora.Api.Infrastructure.Projections;
-using Lab360.Application.Schemas;
+using Valora.Api.Application.Schemas;
 using Valora.Api.Domain.Events;
 
 namespace Valora.Api.Infrastructure.BackgroundJobs;
@@ -22,12 +22,19 @@ public class KafkaConsumer : BackgroundService
         _logger = logger;
         _mongoDb = mongoDb;
         _serviceProvider = serviceProvider;
+        var bootstrap = config["Kafka:BootstrapServers"] ?? "localhost:9092";
+        if (bootstrap.Contains("localhost")) bootstrap = bootstrap.Replace("localhost", "127.0.0.1");
+
         _consumerConfig = new ConsumerConfig
         {
-            BootstrapServers = config["Kafka:BootstrapServers"] ?? "localhost:9092",
-            GroupId = "valora-read-model-group-v3", // Changed to force re-read
+            BootstrapServers = bootstrap,
+            GroupId = "valora-read-model-group-v4", // Stable, new version
             AutoOffsetReset = AutoOffsetReset.Earliest,
-            EnableAutoCommit = false 
+            EnableAutoCommit = false,
+            // Debug = "consumer,cgrp,topic,fetch", // Disabled for production
+            SocketKeepaliveEnable = true,
+            SessionTimeoutMs = 45000,
+            HeartbeatIntervalMs = 3000
         };
     }
 
@@ -38,31 +45,77 @@ public class KafkaConsumer : BackgroundService
 
         try
         {
-            using var consumer = new ConsumerBuilder<string, string>(_consumerConfig).Build();
+            using var consumer = new ConsumerBuilder<string, string>(_consumerConfig)
+                // .SetLogHandler((_, log) => Console.WriteLine($"[KAFKA-LIB] {log.Level} {log.Name}: {log.Message}"))
+                // .SetErrorHandler((_, err) => Console.WriteLine($"[KAFKA-LIB-ERROR] {err}"))
+                .Build();
             
-            // Subscribe to explicit topics to avoid regex issues
-            consumer.Subscribe(new[] 
-            { 
+            // Subscribe to specific topics instead of wildcard for testing stability
+            // consumer.Subscribe("^valora\\..*");
+            consumer.Subscribe(new List<string> { 
                 "valora.data.changed", 
                 "valora.schema.changed", 
                 "valora.fi.gl.created",
+                "valora.fi.gl_account_created",
                 "valora.fi.posted",
                 "valora.mm.stock_moved",
-                "valora.sd.so_billed"
+                "valora.sd.so_billed",
+                "valora.fi.masterdata",
+                "valora.fi.updated"
             });
 
-            _logger.LogInformation("KafkaConsumer subscribed to topics.");
+            _logger.LogInformation("KafkaConsumer subscribed to explicit topic list.");
+            // Console.WriteLine("[CONSOLE DEBUG] KafkaConsumer: Subscribed to explicit list.");
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-                    var consumeResult = consumer.Consume(stoppingToken);
+                    // Non-blocking consume to prove loop is alive
+                    var consumeResult = consumer.Consume(TimeSpan.FromSeconds(2));
+                    
+                    if (consumeResult == null) 
+                    {
+                        // Console.WriteLine("[CONSOLE DEBUG] KafkaConsumer: No message (timeout). Loop alive.");
+                        continue;
+                    }
+
                     var topic = consumeResult.Topic;
+                    
+                    // Console.WriteLine($"[CONSOLE DEBUG] KafkaConsumer: RECEIVED {topic}");
+                    
                     var tenantId = consumeResult.Message.Key;
                     var payload = consumeResult.Message.Value; 
                     
                     _logger.LogInformation("KafkaConsumer received: Topic={Topic}, Key={Key}, PayloadLen={PayloadLen}", topic, tenantId, payload?.Length);
+
+                    // --- LOGGING START ---
+                    // Log to MongoDB for Real-Time UI
+                    try 
+                    {
+                        var logCollection = _mongoDb.GetCollection<BsonDocument>("System_KafkaLog");
+                        var logEntry = new BsonDocument
+                        {
+                            { "Topic", topic },
+                            { "Key", tenantId ?? "NULL" },
+                            { "Payload", payload ?? "" },
+                            { "Timestamp", DateTime.UtcNow },
+                            { "Processed", false } // Initial state
+                        };
+                        // Fire and forget logging? No, let's await it to ensure order, but catch exceptions so main flow doesn't break.
+                        await logCollection.InsertOneAsync(logEntry, cancellationToken: stoppingToken);
+                    }
+                    catch (Exception logEx)
+                    {
+                        _logger.LogError(logEx, "Failed to log Kafka message to MongoDB");
+                    }
+                    // --- LOGGING END ---
+
+                    if (string.IsNullOrEmpty(tenantId))
+                    {
+                        _logger.LogWarning("Received message without TenantId Key for topic {Topic}. Skipping.", topic);
+                        continue;
+                    }
 
                     if (string.IsNullOrEmpty(payload)) 
                     {
@@ -77,6 +130,24 @@ public class KafkaConsumer : BackgroundService
                     else if (topic == "valora.schema.changed")
                     {
                         await ProcessSchemaChanged(tenantId, payload, stoppingToken);
+                    }
+                    else if (topic == "valora.mm.stock_moved")
+                    {
+                        await ProcessStockMovement(payload, stoppingToken);
+                        await ProcessProjection(topic, tenantId, payload, stoppingToken);
+                    }
+                    else if (topic == "valora.sd.so_billed")
+                    {
+                        await ProcessSalesOrderBilled(payload, stoppingToken);
+                        await ProcessProjection(topic, tenantId, payload, stoppingToken);
+                    }
+                    else if (topic == "valora.fi.masterdata")
+                    {
+                        // Handle Master Data (GL Account) updates
+                        await ProcessProjection(topic, tenantId, payload, stoppingToken);
+                        
+                        // Also trigger propagation to Journal Entries
+                        await ProcessGLAccountPropagation(payload, stoppingToken);
                     }
                     else if (topic.StartsWith("valora."))
                     {
@@ -103,6 +174,48 @@ public class KafkaConsumer : BackgroundService
         }
     }
 
+    private async Task ProcessGLAccountPropagation(string payload, CancellationToken stoppingToken)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        // Use the new Domain Service for consistency logic
+        var consistencyService = scope.ServiceProvider.GetRequiredService<Valora.Api.Application.Finance.Services.FinanceDataConsistencyService>();
+        
+        // Deserialize payload to check if it is GLAccountUpdated
+        try 
+        {
+            var doc = JsonDocument.Parse(payload);
+            if (doc.RootElement.TryGetProperty("EventType", out var eventTypeProp) && 
+                eventTypeProp.GetString() == "GLAccountUpdated" &&
+                doc.RootElement.TryGetProperty("Data", out var dataProp) &&
+                dataProp.TryGetProperty("Id", out var idProp))
+            {
+                var glAccountId = idProp.GetString();
+                if (!string.IsNullOrEmpty(glAccountId))
+                {
+                    await consistencyService.HandleGLAccountUpdatedAsync(Guid.Parse(glAccountId));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to propagate GL Account update");
+        }
+    }
+
+    private async Task ProcessStockMovement(string payload, CancellationToken stoppingToken)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<FiIntegrationService>();
+        await service.HandleStockMovementAsync(payload, stoppingToken);
+    }
+
+    private async Task ProcessSalesOrderBilled(string payload, CancellationToken stoppingToken)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<FiIntegrationService>();
+        await service.HandleSalesOrderBilledAsync(payload, stoppingToken);
+    }
+
     private async Task ProcessProjection(string topic, string tenantId, string payload, CancellationToken stoppingToken)
     {
         using var scope = _serviceProvider.CreateScope();
@@ -122,6 +235,19 @@ public class KafkaConsumer : BackgroundService
             document["_id"] = id; 
             document["TenantId"] = tenantId;
             
+            // Flatten Data wrapper if present (Fix for double nesting)
+            if (document.Contains("Data") && document["Data"].IsBsonDocument)
+            {
+                var dataDoc = document["Data"].AsBsonDocument;
+                foreach (var element in dataDoc)
+                {
+                    // Don't overwrite system fields if they exist at root
+                    if (element.Name == "Id" || element.Name == "TenantId" || element.Name == "_id" || element.Name == "ModuleCode") continue;
+                    document[element.Name] = element.Value;
+                }
+                document.Remove("Data");
+            }
+
             // Ensure audit fields are present in Mongo document
             if (!document.Contains("CreatedAt") && document.Contains("CreatedAt")) document["CreatedAt"] = document["CreatedAt"]; // redundant but explicit check
             // Map UpdatedAt/By if present

@@ -59,5 +59,12 @@ if ($matId) {
         
         $orders = Test-Endpoint "Get" "/api/sales/orders"
         Write-Host "Sales Orders: $($orders.data | Out-String)"
+
+        # 6. FI: Check Journal Entries
+        Write-Host "Waiting for Integration (20s)..." -ForegroundColor Cyan
+        Start-Sleep -Seconds 20 
+        Write-Host "`n--- FI Module (Integration Check) ---" -ForegroundColor Yellow
+        $je = Test-Endpoint "Get" "/api/finance/journal-entries"
+        Write-Host "Journal Entries: $($je.data.items | Out-String)"
     }
 }

@@ -1,7 +1,8 @@
 using System.Text.Json.Serialization;
+using Valora.Api.Application.Schemas.TemplateConfig;
 
-namespace Lab360.Application.Schemas
-{    
+namespace Valora.Api.Application.Schemas
+{
     public sealed record ModuleSchema(
     string TenantId,
     string Module,
@@ -9,7 +10,14 @@ namespace Lab360.Application.Schemas
     string ObjectType, // Master or Transaction
     Dictionary<string, FieldRule> Fields,
     List<string[]>? UniqueConstraints = null, // 🔥 NEW
-    ModuleUi? Ui = null
+    ModuleUi? Ui = null,
+    bool ShouldPost = false, // 🔥 NEW: Auto-Posting Flag
+    
+    // ===== NEW: Template Configuration Extensions =====
+    CalculationRulesConfig? CalculationRules = null,
+    DocumentTotalsConfig? DocumentTotals = null,
+    AttachmentConfig? AttachmentConfig = null,
+    CloudStorageConfig? CloudStorage = null
     );
 
     public record ModuleUi(

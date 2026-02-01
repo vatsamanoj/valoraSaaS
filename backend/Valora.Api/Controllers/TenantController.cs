@@ -5,7 +5,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using Valora.Api.Infrastructure.Persistence;
 using Valora.Api.Infrastructure.Services;
-using Lab360.Application.Schemas;
+using Valora.Api.Application.Schemas;
 using Dapper;
 using Npgsql;
 using Valora.Api.Domain.Entities;

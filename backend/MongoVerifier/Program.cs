@@ -12,7 +12,7 @@ class Program
         var client = new MongoClient(connectionString);
         var database = client.GetDatabase("ValoraReadDb");
         
-        var collectionsToCheck = new[] { "full_GLAccount", "full_EmployeePayroll", "full_JournalEntry" };
+        var collectionsToCheck = new[] { "full_GLAccount", "full_JournalEntry" };
 
         foreach (var collectionName in collectionsToCheck)
         {
@@ -28,12 +28,13 @@ class Program
                 {
                     var documents = await collection.Find(new BsonDocument())
                         .Sort(Builders<BsonDocument>.Sort.Descending("_projectedAt"))
-                        .Limit(3)
+                        .Limit(10)
                         .ToListAsync();
                         
                     foreach (var doc in documents)
                     {
                         Console.WriteLine("--------------------------------------------------");
+                        Console.WriteLine($"Tenant: {doc.GetValue("TenantId", "N/A")}");
                         Console.WriteLine(doc.ToJson(new MongoDB.Bson.IO.JsonWriterSettings { Indent = true }));
                     }
                 }

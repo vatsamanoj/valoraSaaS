@@ -1,6 +1,7 @@
 using Lab360.Application.Common.Results;
 using MediatR;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Valora.Api.Infrastructure.Persistence;
 
@@ -48,13 +49,42 @@ public class GetJournalEntriesQueryHandler : IRequestHandler<GetJournalEntriesQu
             .Limit(request.PageSize)
             .ToListAsync(cancellationToken);
 
+        // Generate Debug Query Info
+        var registry = BsonSerializer.SerializerRegistry;
+        var serializer = registry.GetSerializer<BsonDocument>();
+        
+        var renderedFilter = filter.Render(serializer, registry);
+        var renderedSort = sort.Render(serializer, registry);
+
+        var debugParams = new Dictionary<string, object>();
+        if (!string.IsNullOrEmpty(request.DocumentNumber)) 
+            debugParams.Add("documentNumber", request.DocumentNumber);
+        
+        if (request.StartDate.HasValue) 
+            debugParams.Add("startDate", request.StartDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"));
+            
+        if (request.EndDate.HasValue) 
+            debugParams.Add("endDate", request.EndDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"));
+
+        var queryInfo = new
+        {
+            Collection = "full_JournalEntry",
+            Filter = renderedFilter.ToJson(),
+            Sort = renderedSort.ToJson(),
+            TenantId = request.TenantId,
+            Params = debugParams
+        };
+
         var entries = documents.Select(doc => new
         {
             Id = doc["_id"].ToString(),
             DocumentNumber = doc["DocumentNumber"].AsString,
-            PostingDate = doc["PostingDate"].ToUniversalTime(),
+            PostingDate = ParseDate(doc["PostingDate"]),
             Description = doc.Contains("Description") && !doc["Description"].IsBsonNull ? doc["Description"].AsString : "",
             Status = doc["Status"].AsInt32,
+            Version = doc.Contains("Version") && !doc["Version"].IsBsonNull 
+                ? (doc["Version"].IsInt32 ? (uint)doc["Version"].AsInt32 : (uint)doc["Version"].AsInt64) 
+                : 0, // Extract Version (xmin)
             Lines = doc["Lines"].AsBsonArray.Select(l => 
             {
                 var line = l.AsBsonDocument;
@@ -64,8 +94,8 @@ public class GetJournalEntriesQueryHandler : IRequestHandler<GetJournalEntriesQu
                 {
                     Id = line["Id"].ToString(),
                     Description = line.Contains("Description") && !line["Description"].IsBsonNull ? line["Description"].AsString : "",
-                    Debit = line["Debit"].ToDecimal(),
-                    Credit = line["Credit"].ToDecimal(),
+                    Debit = ToDecimalSafe(line["Debit"]),
+                    Credit = ToDecimalSafe(line["Credit"]),
                     GLAccountName = glAccount != null && glAccount.Contains("Name") ? glAccount["Name"].AsString : "Unknown Account",
                     GLAccountCode = glAccount != null && glAccount.Contains("AccountCode") ? glAccount["AccountCode"].AsString : "N/A"
                 };
@@ -77,7 +107,24 @@ public class GetJournalEntriesQueryHandler : IRequestHandler<GetJournalEntriesQu
             Items = entries, 
             TotalCount = totalCount,
             Page = request.Page,
-            PageSize = request.PageSize
+            PageSize = request.PageSize,
+            DebugQuery = queryInfo // Pass query info to frontend
         });
+    }
+
+    private decimal ToDecimalSafe(BsonValue value)
+    {
+        if (value.IsDecimal128) return (decimal)value.AsDecimal;
+        if (value.IsDouble) return (decimal)value.AsDouble;
+        if (value.IsInt32) return (decimal)value.AsInt32;
+        if (value.IsInt64) return (decimal)value.AsInt64;
+        return 0m;
+    }
+
+    private DateTime ParseDate(BsonValue value)
+    {
+        if (value.IsBsonDateTime) return value.ToUniversalTime();
+        if (value.IsString && DateTime.TryParse(value.AsString, out var dt)) return dt.ToUniversalTime();
+        return DateTime.UtcNow;
     }
 }

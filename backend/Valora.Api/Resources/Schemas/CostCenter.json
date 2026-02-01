@@ -1,0 +1,22 @@
+{
+  "fields": {
+    "Code": { "type": "Text", "label": "Cost Center Code", "required": true, "isSystem": true },
+    "Name": { "type": "Text", "label": "Name", "required": true, "isSystem": true },
+    "Description": { "type": "Text", "label": "Description", "multiline": true, "isSystem": true },
+    
+    "ValidFrom": { "type": "Date", "label": "Valid From", "isSystem": true },
+    "ValidTo": { "type": "Date", "label": "Valid To", "isSystem": true },
+    
+    "PersonResponsible": { "type": "Text", "label": "Person Responsible", "isSystem": true },
+    "Department": { "type": "Text", "label": "Department", "isSystem": true },
+    "ProfitCenter": { "type": "Text", "label": "Profit Center Link", "isSystem": true }
+  },
+  "ui": {
+    "listFields": ["Code", "Name", "PersonResponsible", "ValidTo"],
+    "formGroups": [
+        { "title": "General Info", "fields": ["Code", "Name", "Description"] },
+        { "title": "Control", "fields": ["PersonResponsible", "Department", "ProfitCenter"] },
+        { "title": "Validity", "fields": ["ValidFrom", "ValidTo"] }
+    ]
+  }
+}

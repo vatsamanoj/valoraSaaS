@@ -5,6 +5,8 @@ export interface UiHint {
   options?: string[];
   placeholder?: string;
   skipFocus?: boolean;
+  searchStrategy?: 'contains' | 'startsWith' | 'wildcard' | 'pattern';
+  searchPattern?: string;
   gridConfig?: GridConfig;
   section?: string;
 }
@@ -59,11 +61,13 @@ export interface ModuleUi {
     enterKeyNavigation?: boolean;
     listFields?: string[];
     filterFields?: string[];
+    rowsPerPage?: number;
     totals?: {
       totalAmountField?: string;
       discountAmountField?: string;
       taxAmountField?: string;
       netAmountField?: string;
+      rowsPerPage?: number;
     };
 }
 

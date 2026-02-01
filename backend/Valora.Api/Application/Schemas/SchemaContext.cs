@@ -1,4 +1,4 @@
-﻿namespace Lab360.Application.Schemas
+﻿namespace Valora.Api.Application.Schemas
 {    
     public sealed class SchemaContext
     {

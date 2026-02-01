@@ -3,6 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using Valora.Api.Domain.Entities;
 using Valora.Api.Infrastructure.Persistence;
+using Lab360.Application.Common.Security; // Added missing namespace
+using Valora.Api.Application.Schemas;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace Valora.Api.Controllers;
 
@@ -11,10 +15,31 @@ namespace Valora.Api.Controllers;
 public class DebugController : ControllerBase
 {
     private readonly MongoDbContext _mongoDb;
+    private readonly ISchemaProvider _schemaProvider;
+    private readonly PlatformDbContext _sqlDb;
 
-    public DebugController(MongoDbContext mongoDb)
+    public DebugController(MongoDbContext mongoDb, ISchemaProvider schemaProvider, PlatformDbContext sqlDb)
     {
         _mongoDb = mongoDb;
+        _schemaProvider = schemaProvider;
+        _sqlDb = sqlDb;
+    }
+
+    [HttpGet("outbox")]
+    public async Task<IActionResult> GetOutbox()
+    {
+        var messages = await _sqlDb.OutboxMessages
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(10)
+            .ToListAsync();
+        return Ok(messages);
+    }
+
+    [HttpGet("schema/{module}")]
+    public async Task<IActionResult> GetSchema(string module)
+    {
+        var schema = await _schemaProvider.GetSchemaAsync("LAB_001", module, CancellationToken.None);
+        return Ok(schema);
     }
 
     [HttpGet("logs")]
@@ -42,16 +67,39 @@ public class DebugController : ControllerBase
         return Ok(ApiResult.Ok("system", "debug", "fix"));
     }
 
-    [HttpPost("fix-logs")]
-    public async Task<IActionResult> ClearAllLogs()
+    [HttpPost("sync-materials")]
+    public async Task<IActionResult> SyncMaterials()
     {
-        var collection = _mongoDb.GetCollection<SystemLog>("SystemLogs");
-        var update = Builders<SystemLog>.Update
-            .Set(x => x.IsFixed, true)
-            .Set(x => x.FixedAt, DateTime.UtcNow)
-            .Set(x => x.FixedBy, "Admin");
-
-        await collection.UpdateManyAsync(x => !x.IsFixed, update);
-        return Ok(ApiResult.Ok("system", "debug", "fix-all"));
+        var tenantContext = TenantContextFactory.FromHttp(HttpContext);
+        // Fetch all materials from SQL and project them to Mongo
+        var materials = await _sqlDb.MaterialMasters
+            .Where(x => x.TenantId == tenantContext.TenantId)
+            .ToListAsync();
+            
+        var collection = _mongoDb.GetCollection<MongoDB.Bson.BsonDocument>("Entity_Material");
+        
+        foreach (var mat in materials)
+        {
+            var doc = new MongoDB.Bson.BsonDocument
+            {
+                { "_id", mat.Id.ToString() },
+                { "TenantId", mat.TenantId },
+                { "MaterialCode", mat.MaterialCode },
+                { "Description", mat.Description },
+                { "MaterialType", "Raw Material" }, // Default as it's missing in Domain
+                { "BaseUnitOfMeasure", mat.BaseUnitOfMeasure },
+                { "StandardPrice", (double)mat.StandardPrice },
+                { "CreatedAt", mat.CreatedAt },
+                { "IsActive", true } // Default as it's missing in Domain
+            };
+            
+            await collection.ReplaceOneAsync(
+                MongoDB.Driver.Builders<MongoDB.Bson.BsonDocument>.Filter.Eq("_id", mat.Id.ToString()),
+                doc,
+                new ReplaceOptions { IsUpsert = true }
+            );
+        }
+        
+        return Ok(new { Count = materials.Count });
     }
 }
