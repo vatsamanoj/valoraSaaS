@@ -1,24 +1,28 @@
+using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
 using MongoDB.Bson;
-using System.Text.Json;
 
 // Script to inject Sales Order template with new configuration into MongoDB
 Console.WriteLine("=== Injecting Sales Order Template Extension into MongoDB ===\n");
 
-// MongoDB connection
-var connectionString = Environment.GetEnvironmentVariable("MONGODB_URI") 
-    ?? "mongodb://localhost:27017/valora_platform";
-    
-var databaseName = connectionString.Split('/').Last();
-connectionString = connectionString.Replace($"/{databaseName}", "");
+// Build configuration from appsettings
+var configuration = new ConfigurationBuilder()
+    .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "..", "Valora.Api"))
+    .AddJsonFile("appsettings.Development.json", optional: false)
+    .Build();
 
-Console.WriteLine($"Connecting to MongoDB: {connectionString}");
+var connectionString = configuration["MongoDb:ConnectionString"]!;
+var databaseName = configuration["MongoDb:DatabaseName"]!;
+
 Console.WriteLine($"Database: {databaseName}");
 
 try
 {
     var client = new MongoClient(connectionString);
     var database = client.GetDatabase(databaseName);
+    
+    // PlatformObjectTemplate is the correct collection for dynamic screen schemas
+    // ModuleSchema is a C# model class, NOT a MongoDB collection
     var collection = database.GetCollection<BsonDocument>("PlatformObjectTemplate");
 
     // Build the extended SalesOrder schema document

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import DynamicForm from './DynamicForm';
 import Modal from './Modal';
-import { ModuleSchema } from '../types/schema';
-import { ArrowLeft } from 'lucide-react';
+import { ModuleSchema, getSchemaFeatureSupport, SCHEMA_VERSIONS, commitTempValues } from '../types/schema';
+import { ArrowLeft, Server, Calculator, Database } from 'lucide-react';
 import { logger } from '../services/logger';
 import { useTheme } from '../context/ThemeContext';
 import { fetchApi, unwrapResult, ApiResultError } from '../utils/api';
@@ -85,7 +85,12 @@ const GenericObjectForm: React.FC<GenericObjectFormProps> = ({ objectCode: propO
           objectType: body.objectType || 'Master',
           fields: body.fields || {},
           uniqueConstraints: body.uniqueConstraints,
-          ui: body.ui
+          ui: body.ui,
+          // Template Configuration Extensions
+          calculationRules: body.calculationRules,
+          documentTotals: body.documentTotals,
+          attachmentConfig: body.attachmentConfig,
+          cloudStorage: body.cloudStorage
         });
 
         setSchema(schemaData);
@@ -106,21 +111,21 @@ const GenericObjectForm: React.FC<GenericObjectFormProps> = ({ objectCode: propO
             const queryData = await unwrapResult<any>(queryRes);
             
             if (queryData && queryData.data && queryData.data.length > 0) {
-                const rawData = queryData.data[0];
-                // Normalize keys to match schema fields (case-insensitive)
-                const normalizedData: any = { ...rawData };
-                
-                if (schemaData && schemaData.fields) {
-                    Object.keys(schemaData.fields).forEach(schemaField => {
-                         const foundKey = Object.keys(rawData).find(k => k.toLowerCase() === schemaField.toLowerCase());
-                         if (foundKey) {
-                             normalizedData[schemaField] = rawData[foundKey];
-                         }
-                    });
-                }
-                setInitialData(normalizedData);
+              const rawData = queryData.data[0];
+              // Normalize keys to match schema fields (case-insensitive)
+              const normalizedData: any = { ...rawData };
+              
+              if (schemaData && schemaData.fields) {
+                Object.keys(schemaData.fields).forEach(schemaField => {
+                     const foundKey = Object.keys(rawData).find(k => k.toLowerCase() === schemaField.toLowerCase());
+                     if (foundKey) {
+                         normalizedData[schemaField] = rawData[foundKey];
+                     }
+                });
+              }
+              setInitialData(normalizedData);
             } else {
-                throw new Error("Record not found");
+              throw new Error("Record not found");
             }
         }
 
@@ -174,10 +179,13 @@ const GenericObjectForm: React.FC<GenericObjectFormProps> = ({ objectCode: propO
             throw new Error(t('common.noPermission') || 'You do not have permission to edit records for this module.');
         }
 
+        // Commit any temp_ prefixed values before submission
+        const committedData = commitTempValues(data);
+
         const payload = {
             Action: isCreateMode ? 'Create' : 'Update',
             Data: {
-                ...data,
+                ...committedData,
                 ...(id ? { Id: id } : {})
             }
         };
@@ -255,6 +263,89 @@ const GenericObjectForm: React.FC<GenericObjectFormProps> = ({ objectCode: propO
     }
   };
 
+  // ===== Render Version Badge =====
+  const renderVersionBadge = () => {
+    if (!schema) return null;
+    
+    const featureSupport = getSchemaFeatureSupport(schema.version);
+    
+    if (schema.version === SCHEMA_VERSIONS.V1) {
+      return (
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${styles.light} ${styles.text}`}>
+            <Database size={12} />
+            Schema v{schema.version}
+          </span>
+          {schema.calculationRules?.complexCalculation && (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300`}>
+              <Server size={12} />
+              C# Calc
+            </span>
+          )}
+          {featureSupport.documentTotals && (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300`}>
+              <Calculator size={12} />
+              Totals
+            </span>
+          )}
+        </div>
+      );
+    }
+    
+    // Legacy version badges
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400`}>
+        <Database size={12} />
+        Legacy v{schema.version}
+      </span>
+    );
+  };
+
+  // ===== Render Feature Availability Notice =====
+  const renderFeatureNotice = () => {
+    if (!schema) return null;
+    
+    // Only show notice for legacy versions (2-7)
+    if (schema.version === SCHEMA_VERSIONS.V1) return null;
+    
+    const featureSupport = getSchemaFeatureSupport(schema.version);
+    const availableFeatures: string[] = [];
+    const unavailableFeatures: string[] = [];
+    
+    if (featureSupport.documentTotals) availableFeatures.push('Document Totals');
+    else unavailableFeatures.push('Document Totals');
+    
+    if (featureSupport.attachments) availableFeatures.push('Attachments');
+    else unavailableFeatures.push('Attachments');
+    
+    if (featureSupport.cloudStorage) availableFeatures.push('Cloud Storage');
+    else unavailableFeatures.push('Cloud Storage');
+    
+    if (featureSupport.complexCalculations) availableFeatures.push('Complex Calculations');
+    else unavailableFeatures.push('Complex Calculations');
+    
+    if (featureSupport.tempValues) availableFeatures.push('Temporary Values');
+    else unavailableFeatures.push('Temporary Values');
+
+    return (
+      <div className={`mb-4 p-3 rounded-lg border ${global.bgSecondary} ${global.border}`}>
+        <p className={`text-xs ${global.textSecondary} mb-1`}>
+          This schema uses version {schema.version} with limited feature support:
+        </p>
+        {availableFeatures.length > 0 && (
+          <p className={`text-xs text-green-600 dark:text-green-400`}>
+            ✓ Available: {availableFeatures.join(', ')}
+          </p>
+        )}
+        {unavailableFeatures.length > 0 && (
+          <p className={`text-xs text-amber-600 dark:text-amber-400`}>
+            ✗ Not available: {unavailableFeatures.join(', ')}
+          </p>
+        )}
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${global.bgSecondary}`}>
@@ -318,9 +409,15 @@ const GenericObjectForm: React.FC<GenericObjectFormProps> = ({ objectCode: propO
             )}
           </div>
         </div>
+        
+        {/* Version Badge */}
+        {renderVersionBadge()}
       </div>
 
       <div className="flex-1 p-4 sm:p-8 max-w-5xl mx-auto w-full">
+        {/* Feature Availability Notice for Legacy Versions */}
+        {renderFeatureNotice()}
+        
         {schema && (
           <DynamicForm 
             schema={schema} 

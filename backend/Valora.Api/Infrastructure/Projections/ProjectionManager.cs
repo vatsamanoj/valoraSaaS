@@ -15,15 +15,21 @@ public class ProjectionManager
 {
     private readonly PlatformDbContext _dbContext;
     private readonly MongoProjectionRepository _mongoRepo;
+    private readonly SmartProjectionService _smartProjectionService;
     private readonly ILogger<ProjectionManager> _logger;
-    
+
     // Cache for Type lookups
     private static readonly Dictionary<string, Type> _typeCache = new();
 
-    public ProjectionManager(PlatformDbContext dbContext, MongoProjectionRepository mongoRepo, ILogger<ProjectionManager> logger)
+    public ProjectionManager(
+        PlatformDbContext dbContext,
+        MongoProjectionRepository mongoRepo,
+        SmartProjectionService smartProjectionService,
+        ILogger<ProjectionManager> logger)
     {
         _dbContext = dbContext;
         _mongoRepo = mongoRepo;
+        _smartProjectionService = smartProjectionService;
         _logger = logger;
     }
 
@@ -146,10 +152,13 @@ public class ProjectionManager
             // But we might need to be careful with dates etc. System.Text.Json defaults to ISO 8601 which Mongo likes.
             var bsonDoc = MongoDB.Bson.BsonDocument.Parse(jsonString);
 
+            // Apply smart projection processing (denormalization, compression, etc.)
+            bsonDoc = await _smartProjectionService.ProcessDocumentAsync(aggregateType, bsonDoc);
+
             // Project to Mongo
             await _mongoRepo.UpsertFullProjectionAsync(aggregateType, aggregateId, tenantId, bsonDoc);
-            
-            _logger.LogInformation("Projected {AggregateType}:{AggregateId} to Mongo.", aggregateType, aggregateId);
+
+            _logger.LogInformation("Projected {AggregateType}:{AggregateId} to Mongo with smart optimizations.", aggregateType, aggregateId);
         }
         catch (Exception ex)
         {

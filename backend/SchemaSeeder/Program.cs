@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using System.Text.Json;
@@ -9,11 +10,23 @@ class Program
     static async Task Main(string[] args)
     {
         Console.WriteLine("Connecting to MongoDB...");
-        var connectionString = "mongodb+srv://vatsamanoj_db_user:cVmX5s193hAEpBd4@cluster0.k6mzgv0.mongodb.net/ValoraReadDb?authSource=admin&retryWrites=true&w=majority&tls=true";
-        var client = new MongoClient(connectionString);
-        var database = client.GetDatabase("ValoraReadDb");
+        
+        // Build configuration from appsettings
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "..", "Valora.Api"))
+            .AddJsonFile("appsettings.Development.json", optional: false)
+            .Build();
 
-        var collection = database.GetCollection<BsonDocument>("ModuleSchema");
+        var connectionString = configuration["MongoDb:ConnectionString"]!;
+        var databaseName = configuration["MongoDb:DatabaseName"]!;
+        
+        Console.WriteLine($"Database: {databaseName}");
+        
+        var client = new MongoClient(connectionString);
+        var database = client.GetDatabase(databaseName);
+
+        // PlatformObjectTemplate is the correct collection for dynamic screen schemas
+        var collection = database.GetCollection<BsonDocument>("PlatformObjectTemplate");
 
         var patientSchema = new
         {

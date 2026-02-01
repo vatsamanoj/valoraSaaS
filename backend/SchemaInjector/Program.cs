@@ -333,6 +333,9 @@ try
         }
     };
 
+    // Get the v1 schema to replicate for v2-v7
+    var v1Schema = salesOrderSchema["environments"].AsBsonDocument["prod"].AsBsonDocument["screens"].AsBsonDocument["SalesOrder"].AsBsonDocument["v1"];
+    
     // Create filter to find existing document
     var filter = Builders<BsonDocument>.Filter.Eq("tenantId", "LAB003");
     
@@ -343,21 +346,44 @@ try
     {
         Console.WriteLine("Found existing document for LAB003, updating...");
         
-        // Update the specific path: environments.prod.screens.SalesOrder.v1
-        var update = Builders<BsonDocument>.Update.Set("environments.prod.screens.SalesOrder.v1", 
-            salesOrderSchema["environments"].AsBsonDocument["prod"].AsBsonDocument["screens"].AsBsonDocument["SalesOrder"].AsBsonDocument["v1"]);
+        // Build update definitions for all versions v1-v7
+        var updateDefs = new List<UpdateDefinition<BsonDocument>>();
         
-        var result = collection.UpdateOne(filter, update);
+        // Add v1 update
+        updateDefs.Add(Builders<BsonDocument>.Update.Set("environments.prod.screens.SalesOrder.v1", v1Schema));
+        
+        // Add v2-v7 updates (same schema structure as v1)
+        for (int version = 2; version <= 7; version++)
+        {
+            var versionKey = $"v{version}";
+            updateDefs.Add(Builders<BsonDocument>.Update.Set($"environments.prod.screens.SalesOrder.{versionKey}", v1Schema));
+            Console.WriteLine($"Prepared update for {versionKey}");
+        }
+        
+        // Combine all updates
+        var combinedUpdate = Builders<BsonDocument>.Update.Combine(updateDefs);
+        var result = collection.UpdateOne(filter, combinedUpdate);
         Console.WriteLine($"Update result: Matched={result.MatchedCount}, Modified={result.ModifiedCount}");
     }
     else
     {
         Console.WriteLine("Creating new document for LAB003...");
+        
+        // Add v2-v7 to the schema before inserting
+        var salesOrderScreens = salesOrderSchema["environments"].AsBsonDocument["prod"].AsBsonDocument["screens"].AsBsonDocument["SalesOrder"].AsBsonDocument;
+        
+        for (int version = 2; version <= 7; version++)
+        {
+            var versionKey = $"v{version}";
+            salesOrderScreens[versionKey] = v1Schema.Clone().AsBsonDocument;
+            Console.WriteLine($"Added {versionKey} to schema");
+        }
+        
         collection.InsertOne(salesOrderSchema);
         Console.WriteLine("Document inserted successfully");
     }
 
-    // Verify the update
+    // Verify the update for all versions
     var verifyDoc = collection.Find(filter).FirstOrDefault();
     if (verifyDoc != null)
     {
@@ -368,46 +394,78 @@ try
         var prod = env["prod"].AsBsonDocument;
         var screens = prod["screens"].AsBsonDocument;
         var salesOrder = screens["SalesOrder"].AsBsonDocument;
-        var v1 = salesOrder["v1"].AsBsonDocument;
         
-        Console.WriteLine($"Environment: prod");
-        Console.WriteLine($"Screen: SalesOrder");
-        Console.WriteLine($"Version: v1");
-        Console.WriteLine($"IsPublished: {v1["isPublished"]}");
-        Console.WriteLine($"ShouldPost: {v1["shouldPost"]}");
-        Console.WriteLine($"Has calculationRules: {v1.Contains("calculationRules")}");
-        Console.WriteLine($"Has documentTotals: {v1.Contains("documentTotals")}");
-        Console.WriteLine($"Has attachmentConfig: {v1.Contains("attachmentConfig")}");
-        Console.WriteLine($"Has cloudStorage: {v1.Contains("cloudStorage")}");
-        
-        if (v1.Contains("calculationRules"))
+        // Verify all versions v1-v7
+        for (int version = 1; version <= 7; version++)
         {
-            var calcRules = v1["calculationRules"].AsBsonDocument;
-            var serverSide = calcRules["serverSide"].AsBsonDocument;
-            Console.WriteLine($"  - LineItemCalculations: {serverSide["lineItemCalculations"].AsBsonArray.Count}");
-            Console.WriteLine($"  - DocumentCalculations: {serverSide["documentCalculations"].AsBsonArray.Count}");
+            var versionKey = $"v{version}";
+            if (salesOrder.Contains(versionKey))
+            {
+                var versionSchema = salesOrder[versionKey].AsBsonDocument;
+                Console.WriteLine($"\n--- Version {versionKey} ---");
+                Console.WriteLine($"  IsPublished: {versionSchema["isPublished"]}");
+                Console.WriteLine($"  ShouldPost: {versionSchema["shouldPost"]}");
+                Console.WriteLine($"  Has calculationRules: {versionSchema.Contains("calculationRules")}");
+                Console.WriteLine($"  Has documentTotals: {versionSchema.Contains("documentTotals")}");
+                Console.WriteLine($"  Has attachmentConfig: {versionSchema.Contains("attachmentConfig")}");
+                Console.WriteLine($"  Has cloudStorage: {versionSchema.Contains("cloudStorage")}");
+                
+                if (versionSchema.Contains("calculationRules"))
+                {
+                    var calcRules = versionSchema["calculationRules"].AsBsonDocument;
+                    var serverSide = calcRules["serverSide"].AsBsonDocument;
+                    Console.WriteLine($"    - LineItemCalculations: {serverSide["lineItemCalculations"].AsBsonArray.Count}");
+                    Console.WriteLine($"    - DocumentCalculations: {serverSide["documentCalculations"].AsBsonArray.Count}");
+                }
+                
+                if (versionSchema.Contains("documentTotals"))
+                {
+                    var docTotals = versionSchema["documentTotals"].AsBsonDocument;
+                    Console.WriteLine($"    - Total Fields: {docTotals["fields"].AsBsonDocument.ElementCount}");
+                }
+                
+                if (versionSchema.Contains("attachmentConfig"))
+                {
+                    var attachConfig = versionSchema["attachmentConfig"].AsBsonDocument;
+                    var docLevel = attachConfig["documentLevel"].AsBsonDocument;
+                    var lineLevel = attachConfig["lineLevel"].AsBsonDocument;
+                    Console.WriteLine($"    - DocumentLevel.Enabled: {docLevel["enabled"]}");
+                    Console.WriteLine($"    - LineLevel.Enabled: {lineLevel["enabled"]}");
+                }
+                
+                if (versionSchema.Contains("cloudStorage"))
+                {
+                    var cloudStorage = versionSchema["cloudStorage"].AsBsonDocument;
+                    Console.WriteLine($"    - Providers: {cloudStorage["providers"].AsBsonArray.Count}");
+                    Console.WriteLine($"    - VirusScanEnabled: {cloudStorage["globalSettings"].AsBsonDocument["virusScanEnabled"]}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"\n✗ Version {versionKey} NOT FOUND!");
+            }
         }
         
-        if (v1.Contains("documentTotals"))
+        // Summary
+        Console.WriteLine("\n=== Summary ===");
+        int versionsFound = 0;
+        for (int version = 1; version <= 7; version++)
         {
-            var docTotals = v1["documentTotals"].AsBsonDocument;
-            Console.WriteLine($"  - Total Fields: {docTotals["fields"].AsBsonDocument.ElementCount}");
+            var versionKey = $"v{version}";
+            if (salesOrder.Contains(versionKey))
+            {
+                versionsFound++;
+            }
         }
+        Console.WriteLine($"Total versions injected: {versionsFound}/7");
         
-        if (v1.Contains("attachmentConfig"))
+        if (versionsFound == 7)
         {
-            var attachConfig = v1["attachmentConfig"].AsBsonDocument;
-            var docLevel = attachConfig["documentLevel"].AsBsonDocument;
-            var lineLevel = attachConfig["lineLevel"].AsBsonDocument;
-            Console.WriteLine($"  - DocumentLevel.Enabled: {docLevel["enabled"]}");
-            Console.WriteLine($"  - LineLevel.Enabled: {lineLevel["enabled"]}");
+            Console.WriteLine("✓ All versions (v1-v7) successfully injected!");
         }
-        
-        if (v1.Contains("cloudStorage"))
+        else
         {
-            var cloudStorage = v1["cloudStorage"].AsBsonDocument;
-            Console.WriteLine($"  - Providers: {cloudStorage["providers"].AsBsonArray.Count}");
-            Console.WriteLine($"  - VirusScanEnabled: {cloudStorage["globalSettings"].AsBsonDocument["virusScanEnabled"]}");
+            Console.WriteLine("✗ Some versions are missing!");
         }
     }
 

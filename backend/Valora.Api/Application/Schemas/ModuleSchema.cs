@@ -12,12 +12,15 @@ namespace Valora.Api.Application.Schemas
     List<string[]>? UniqueConstraints = null, // 🔥 NEW
     ModuleUi? Ui = null,
     bool ShouldPost = false, // 🔥 NEW: Auto-Posting Flag
-    
+
     // ===== NEW: Template Configuration Extensions =====
     CalculationRulesConfig? CalculationRules = null,
     DocumentTotalsConfig? DocumentTotals = null,
     AttachmentConfig? AttachmentConfig = null,
-    CloudStorageConfig? CloudStorage = null
+    CloudStorageConfig? CloudStorage = null,
+
+    // ===== NEW: Smart Projection Configuration =====
+    SmartProjectionConfig? SmartProjection = null
     );
 
     public record ModuleUi(

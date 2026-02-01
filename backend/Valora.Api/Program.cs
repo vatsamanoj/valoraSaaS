@@ -23,6 +23,9 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Progr
 
 builder.Services.AddSingleton<Valora.Api.Infrastructure.Persistence.MongoDbContext>();
 builder.Services.AddScoped<MongoProjectionRepository>();
+builder.Services.AddScoped<IndexManager>();
+builder.Services.AddScoped<ProjectionOptimizer>();
+builder.Services.AddScoped<SmartProjectionService>();
 builder.Services.AddScoped<ProjectionManager>();
 
 builder.Services.AddHostedService<Valora.Api.Infrastructure.BackgroundJobs.OutboxProcessor>();

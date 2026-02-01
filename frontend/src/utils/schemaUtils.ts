@@ -1,4 +1,12 @@
-import { ModuleSchema } from '../types/schema';
+import { 
+  ModuleSchema, 
+  getSchemaFeatureSupport, 
+  SCHEMA_VERSIONS,
+  isTempField,
+  getFieldNameFromTemp,
+  createTempFieldName,
+  commitTempValues
+} from '../types/schema';
 
 export const normalizeSchema = (data: any): ModuleSchema => {
     // Handle API Response Wrapper (unwrap 'data' if present)
@@ -32,6 +40,85 @@ export const normalizeSchema = (data: any): ModuleSchema => {
     // Normalize 'uniqueConstraints'
     if (normalized.UniqueConstraints && !normalized.uniqueConstraints) {
         normalized.uniqueConstraints = normalized.UniqueConstraints;
+    }
+
+    // ===== Version Normalization =====
+    // Ensure version is a number between 1-7
+    let version = parseInt(normalized.version, 10);
+    if (isNaN(version) || version < 1) {
+        version = 1;
+    } else if (version > 7) {
+        version = 7;
+    }
+    normalized.version = version;
+
+    // ===== Template Configuration Normalization =====
+    // Normalize calculationRules (handle both camelCase and PascalCase)
+    if (normalized.CalculationRules && !normalized.calculationRules) {
+        normalized.calculationRules = normalized.CalculationRules;
+    }
+    
+    // Normalize documentTotals
+    if (normalized.DocumentTotals && !normalized.documentTotals) {
+        normalized.documentTotals = normalized.DocumentTotals;
+    }
+    
+    // Normalize attachmentConfig
+    if (normalized.AttachmentConfig && !normalized.attachmentConfig) {
+        normalized.attachmentConfig = normalized.AttachmentConfig;
+    }
+    
+    // Normalize cloudStorage
+    if (normalized.CloudStorage && !normalized.cloudStorage) {
+        normalized.cloudStorage = normalized.CloudStorage;
+    }
+
+    // ===== Feature Support Based on Version =====
+    const featureSupport = getSchemaFeatureSupport(version);
+    
+    // For versions 2-7, disable features not supported
+    if (version > SCHEMA_VERSIONS.V1) {
+        // Remove complex calculations for V2-V7
+        if (normalized.calculationRules?.serverSide?.complexCalculations) {
+            normalized.calculationRules.serverSide.complexCalculations = [];
+        }
+        
+        // Disable complexCalculation flag for V2-V7
+        if (normalized.calculationRules) {
+            normalized.calculationRules.complexCalculation = false;
+        }
+        
+        // Remove documentTotals for V3-V7
+        if (!featureSupport.documentTotals && normalized.documentTotals) {
+            delete normalized.documentTotals;
+        }
+        
+        // Remove attachments for V2, V4-V7
+        if (!featureSupport.attachments && normalized.attachmentConfig) {
+            delete normalized.attachmentConfig;
+        }
+        
+        // Remove cloudStorage for V2-V3, V5-V7
+        if (!featureSupport.cloudStorage && normalized.cloudStorage) {
+            delete normalized.cloudStorage;
+        }
+    }
+
+    // ===== Client-Side Script Removal =====
+    // Ensure clientSide calculations are never executed
+    if (normalized.calculationRules?.clientSide) {
+        // Keep the structure for backward compatibility but mark as deprecated
+        const clientSide = normalized.calculationRules.clientSide;
+        // Clear any script content (security measure)
+        if (clientSide.onLoad) clientSide.onLoad = '// DEPRECATED - Not executed';
+        if (clientSide.onBeforeSave) clientSide.onBeforeSave = '// DEPRECATED - Not executed';
+        if (clientSide.onLineItemAdd) clientSide.onLineItemAdd = '// DEPRECATED - Not executed';
+        if (clientSide.onLineItemRemove) clientSide.onLineItemRemove = '// DEPRECATED - Not executed';
+        if (clientSide.customFunctions) {
+            Object.keys(clientSide.customFunctions).forEach(key => {
+                clientSide.customFunctions[key] = '// DEPRECATED - Not executed';
+            });
+        }
     }
 
     if (normalized.fields) {
@@ -188,7 +275,7 @@ export const normalizeSchema = (data: any): ModuleSchema => {
             
             // Wait, if the user provides explicit layout in JSON, they likely use the keys as they appear in the JSON.
             // If the JSON is nested:
-            // "General Info": { "name": ... }
+            // "fields": { "General Info": { "name": ... } }
             // The user might put "name" in the layout, or "General Info.name"?
             // The template uses:
             // "layout": [ { "section": "General Info", "fields": ["name"] } ]
@@ -197,20 +284,6 @@ export const normalizeSchema = (data: any): ModuleSchema => {
             // This is a mismatch! 
             // If we flatten the fields to "General Info.name", but the layout says "name", 
             // the form renderer won't find "name" in `normalized.fields`.
-            
-            // We need to map the layout fields to the flattened keys.
-            // OR, we need to handle this resolution.
-            
-            // Let's create a map of ShortName -> FullPath
-            // Be careful about collisions (e.g. "name" in multiple sections).
-            // But in the nested structure, "name" is unique within "General Info".
-            
-            // Actually, in the provided template:
-            // "fields": { "General Info": { "name": ... } }
-            // "layout": [ { "section": "General Info", "fields": ["name"] } ]
-            
-            // Our flattener makes `fields["General Info.name"]`.
-            // The renderer looks for `fields["name"]` and fails.
             
             // FIX:
             // We should iterate the layout and update field references to their full path if found.
@@ -273,3 +346,193 @@ export const normalizeSchema = (data: any): ModuleSchema => {
 
     return normalized as ModuleSchema;
 };
+
+// ===== Temp Value Utilities =====
+
+/**
+ * Extract temp values from form data for separate handling
+ */
+export function extractTempValuesFromData(data: Record<string, any>): {
+  committed: Record<string, any>;
+  temp: Record<string, any>;
+} {
+  const committed: Record<string, any> = {};
+  const temp: Record<string, any> = {};
+  
+  Object.entries(data).forEach(([key, value]) => {
+    if (isTempField(key)) {
+      temp[key] = value;
+    } else {
+      committed[key] = value;
+    }
+  });
+  
+  return { committed, temp };
+}
+
+/**
+ * Merge temp values back into form data
+ */
+export function mergeTempValues(data: Record<string, any>, tempValues: Record<string, any>): Record<string, any> {
+  return {
+    ...data,
+    ...tempValues
+  };
+}
+
+/**
+ * Check if a field should use temp_ prefix based on schema configuration
+ */
+export function shouldUseTempPrefix(
+  fieldName: string,
+  schema: ModuleSchema
+): boolean {
+  // Only V1 schemas support temp values
+  if (schema.version !== SCHEMA_VERSIONS.V1) return false;
+  
+  // Check if field has a calculation rule
+  const hasLineItemCalc = schema.calculationRules?.serverSide?.lineItemCalculations?.some(
+    c => c.targetField === fieldName
+  ) ?? false;
+  const hasDocumentCalc = schema.calculationRules?.serverSide?.documentCalculations?.some(
+    c => c.targetField === fieldName
+  ) ?? false;
+  const hasComplexCalc = schema.calculationRules?.serverSide?.complexCalculations?.some(
+    c => c.targetField === fieldName
+  ) ?? false;
+  
+  return hasLineItemCalc || hasDocumentCalc || hasComplexCalc;
+}
+
+/**
+ * Prepare initial data with temp values separated
+ */
+export function prepareInitialDataWithTemp(
+  data: Record<string, any>,
+  schema: ModuleSchema
+): Record<string, any> {
+  const result = { ...data };
+  
+  // For V1 schemas with complex calculations, ensure calculated fields have temp_ counterparts
+  if (schema.version === SCHEMA_VERSIONS.V1 && schema.calculationRules?.complexCalculation) {
+    const calculatedFields = new Set<string>();
+    
+    schema.calculationRules.serverSide?.lineItemCalculations?.forEach(calc => {
+      calculatedFields.add(calc.targetField);
+    });
+    schema.calculationRules.serverSide?.documentCalculations?.forEach(calc => {
+      calculatedFields.add(calc.targetField);
+    });
+    schema.calculationRules.serverSide?.complexCalculations?.forEach(calc => {
+      calculatedFields.add(calc.targetField);
+    });
+    
+    // Create temp_ entries for calculated fields if they don't exist
+    calculatedFields.forEach(fieldName => {
+      const tempFieldName = createTempFieldName(fieldName);
+      if (result[fieldName] !== undefined && result[tempFieldName] === undefined) {
+        result[tempFieldName] = result[fieldName];
+      }
+    });
+  }
+  
+  return result;
+}
+
+// Re-export temp value functions from types for convenience
+export { isTempField, getFieldNameFromTemp, createTempFieldName, commitTempValues };
+
+// ===== Backward Compatibility Helpers =====
+
+/**
+ * Convert old schema format to new format
+ * Handles legacy v2-v7 schemas
+ */
+export function convertLegacySchema(legacyData: any): ModuleSchema {
+  const version = parseInt(legacyData.version, 10) || 1;
+  
+  // Base conversion
+  const converted: ModuleSchema = {
+    tenantId: legacyData.tenantId || legacyData.TenantId || 'UNKNOWN',
+    module: legacyData.module || legacyData.Module || 'Unknown',
+    version: version,
+    objectType: legacyData.objectType || legacyData.ObjectType || 'Master',
+    fields: legacyData.fields || legacyData.Fields || {},
+    uniqueConstraints: legacyData.uniqueConstraints || legacyData.UniqueConstraints,
+    ui: legacyData.ui || legacyData.Ui,
+  };
+  
+  // Apply version-specific feature limitations
+  const featureSupport = getSchemaFeatureSupport(version);
+  
+  if (featureSupport.documentTotals && (legacyData.documentTotals || legacyData.DocumentTotals)) {
+    converted.documentTotals = legacyData.documentTotals || legacyData.DocumentTotals;
+  }
+  
+  if (featureSupport.attachments && (legacyData.attachmentConfig || legacyData.AttachmentConfig)) {
+    converted.attachmentConfig = legacyData.attachmentConfig || legacyData.AttachmentConfig;
+  }
+  
+  if (featureSupport.cloudStorage && (legacyData.cloudStorage || legacyData.CloudStorage)) {
+    converted.cloudStorage = legacyData.cloudStorage || legacyData.CloudStorage;
+  }
+  
+  // Handle calculation rules - never include client-side scripts
+  if (legacyData.calculationRules || legacyData.CalculationRules) {
+    const rules = legacyData.calculationRules || legacyData.CalculationRules;
+    converted.calculationRules = {
+      serverSide: {
+        lineItemCalculations: rules.serverSide?.lineItemCalculations || rules.ServerSide?.LineItemCalculations || [],
+        documentCalculations: rules.serverSide?.documentCalculations || rules.ServerSide?.DocumentCalculations || [],
+        complexCalculations: featureSupport.complexCalculations 
+          ? (rules.serverSide?.complexCalculations || rules.ServerSide?.ComplexCalculations || [])
+          : []
+      },
+      clientSide: {
+        onLoad: '// DEPRECATED - Not executed',
+        onBeforeSave: '// DEPRECATED - Not executed',
+        onLineItemAdd: '// DEPRECATED - Not executed',
+        onLineItemRemove: '// DEPRECATED - Not executed',
+        customFunctions: {}
+      },
+      complexCalculation: featureSupport.complexCalculations && rules.complexCalculation === true
+    };
+  }
+  
+  return converted;
+}
+
+/**
+ * Validate schema version compatibility
+ */
+export function validateSchemaVersion(version: number): {
+  valid: boolean;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+  
+  if (version < 1 || version > 7) {
+    return {
+      valid: false,
+      warnings: [`Invalid schema version: ${version}. Must be between 1 and 7.`]
+    };
+  }
+  
+  const featureSupport = getSchemaFeatureSupport(version);
+  
+  if (version > SCHEMA_VERSIONS.V1) {
+    warnings.push(`Schema version ${version} is a legacy version with limited feature support.`);
+    
+    if (!featureSupport.complexCalculations) {
+      warnings.push('Complex calculations (C#) are not available in this version.');
+    }
+    if (!featureSupport.tempValues) {
+      warnings.push('Temporary values (temp_ prefix) are not available in this version.');
+    }
+  }
+  
+  return {
+    valid: true,
+    warnings
+  };
+}

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
@@ -13,10 +14,20 @@ namespace MongoReader
             try 
             {
                 Console.WriteLine("Connecting to Mongo...");
-                // Use the connection string from appsettings.Development.json
-                var connectionString = "mongodb+srv://vatsamanoj_db_user:cVmX5s193hAEpBd4@cluster0.k6mzgv0.mongodb.net/ValoraReadDb?authSource=admin&retryWrites=true&w=majority&tls=true";
+                
+                // Build configuration from appsettings
+                var configuration = new ConfigurationBuilder()
+                    .SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), "..", "Valora.Api"))
+                    .AddJsonFile("appsettings.Development.json", optional: false)
+                    .Build();
+
+                var connectionString = configuration["MongoDb:ConnectionString"]!;
+                var databaseName = configuration["MongoDb:DatabaseName"]!;
+                
+                Console.WriteLine($"Database: {databaseName}");
+                
                 var client = new MongoClient(connectionString);
-                var db = client.GetDatabase("ValoraReadDb");
+                var db = client.GetDatabase(databaseName);
                 var collection = db.GetCollection<BsonDocument>("PlatformObjectTemplate");
 
                 Console.WriteLine("Querying...");
