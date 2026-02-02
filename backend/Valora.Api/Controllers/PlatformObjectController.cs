@@ -301,7 +301,8 @@ public class PlatformObjectController : ControllerBase
         HttpContext.Response.Headers["X-Is-Published"] = hasPublished ? "true" : "false";
 
         var versionDoc = versionEntry.Document;
-        var result = versionDoc.ToDictionary();
+        var json = versionDoc.ToJson(new MongoDB.Bson.IO.JsonWriterSettings { OutputMode = MongoDB.Bson.IO.JsonOutputMode.RelaxedExtendedJson });
+        var result = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
 
         return Ok(ApiResult.Ok(tenantContext.TenantId, objectCode, "latest", result));
     }

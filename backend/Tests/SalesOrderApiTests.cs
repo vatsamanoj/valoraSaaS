@@ -190,7 +190,7 @@ namespace Valora.Tests
             // Arrange
             var request = new HttpRequestMessage(HttpMethod.Get, "/api/platform/object/SalesOrder/latest");
             request.Headers.Add("X-Tenant-ID", "test-tenant");
-            request.Headers.Add("X-Environment", "dev");
+            request.Headers.Add("X-Environment", "prod");
 
             // Act
             var response = await _client.SendAsync(request);
