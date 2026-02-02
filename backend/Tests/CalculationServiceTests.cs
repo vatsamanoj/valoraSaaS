@@ -99,7 +99,7 @@ public class CalculationServiceTests
 
         // Assert
         var subTotal = result["SubTotal"];
-        Assert.Equal(1500, subTotal);
+        Assert.Equal(1500m, subTotal);
     }
 
 

@@ -41,13 +41,28 @@ namespace Valora.Api.Application.Schemas
     );
 
     public record FieldRule(
-        bool Required,
+        // Field Definition
+        string? Type = null, // Text, Date, Money, Lookup, Grid, Boolean, Number
+        string? Label = null,
+        bool ReadOnly = false,
+        bool IsSystem = false,
+        bool Multiline = false,
+        string? DefaultValue = null,
+        string[]? Options = null,
+        object? Columns = null, // For Grid type
+
+        // Validation Rules
+        bool Required = false,
         bool Unique = false,
         int? MaxLength = null,
         bool IsSensitive = false,
         bool AutoGenerate = false,
         string? Pattern = null, // e.g. "BILL-{YYYY}-{SEQ:6}"
+
+        // Storage
         string Storage = "Core", // "Core" or "Extension" - using string to match JSON serialization easier
+
+        // UI Configuration
         UiHint? Ui = null
     );
 

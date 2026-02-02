@@ -289,8 +289,9 @@ public sealed class SchemaCache : ISchemaProvider
               versionEntry.Version,
               finalSchemaJson);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "[DEBUG] TryGet: Exception during schema loading: {Message}", ex.Message);
             return null;
         }
     }

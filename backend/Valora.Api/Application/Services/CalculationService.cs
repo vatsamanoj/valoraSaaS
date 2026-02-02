@@ -94,20 +94,7 @@ public class CalculationService
     {
         try
         {
-            var expression = new Expression(formula);
-            var parameters = new Dictionary<string, object>();
-
-            var matches = Regex.Matches(formula, @"{(\w+)}");
-            foreach (Match match in matches)
-            {
-                var fieldName = match.Groups[1].Value;
-                if (data.TryGetValue(fieldName, out var value))
-                {
-                    parameters[fieldName] = value;
-                }
-            }
-
-            // Handle SUM aggregation
+            // Handle SUM aggregation first
             if (formula.StartsWith("SUM("))
             {
                 var match = Regex.Match(formula, @"SUM\({Items\.(\w+)}\)");
@@ -126,6 +113,21 @@ public class CalculationService
                         }
                         return sum;
                     }
+                }
+            }
+
+            // Replace {field} syntax with regular variable names for NCalc
+            var ncalcFormula = Regex.Replace(formula, @"\{(\w+)\}", "$1");
+            var expression = new Expression(ncalcFormula);
+            var parameters = new Dictionary<string, object>();
+
+            var matches = Regex.Matches(formula, @"{(\w+)}");
+            foreach (Match match in matches)
+            {
+                var fieldName = match.Groups[1].Value;
+                if (data.TryGetValue(fieldName, out var value))
+                {
+                    parameters[fieldName] = value;
                 }
             }
 

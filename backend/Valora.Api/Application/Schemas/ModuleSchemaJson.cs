@@ -9,11 +9,11 @@ namespace Valora.Api.Application.Schemas
     {
         private sealed record ModuleSchemaDto(
             [property: JsonPropertyName("objectType")] string? ObjectType,
-            [property: JsonPropertyName("fields")] JsonElement Fields,
+            [property: JsonPropertyName("fields")] Dictionary<string, object>? Fields = null,
             [property: JsonPropertyName("uniqueConstraints")] List<string[]>? UniqueConstraints = null,
             [property: JsonPropertyName("ui")] ModuleUi? Ui = null,
             [property: JsonPropertyName("shouldPost")] bool ShouldPost = false, // 🔥 NEW
-            
+
             // ===== NEW: Template Configuration Extensions =====
             [property: JsonPropertyName("calculationRules")] CalculationRulesConfig? CalculationRules = null,
             [property: JsonPropertyName("documentTotals")] DocumentTotalsConfig? DocumentTotals = null,
@@ -33,8 +33,21 @@ namespace Valora.Api.Application.Schemas
                 PropertyNameCaseInsensitive = true
             };
 
-            var body = JsonSerializer.Deserialize<ModuleSchemaDto>(schemaJson, options) 
-                ?? throw new Exception("Invalid SchemaJson");
+            ModuleSchemaDto? body;
+            try
+            {
+                body = JsonSerializer.Deserialize<ModuleSchemaDto>(schemaJson, options);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to deserialize schema JSON for {module} v{version}: {ex.Message}. JSON: {schemaJson[..Math.Min(500, schemaJson.Length)]}", ex);
+            }
+
+            if (body == null)
+                throw new Exception("Invalid SchemaJson - deserialization returned null");
+
+            if (body.Fields == null)
+                throw new Exception("Schema must contain a 'fields' property");
 
             var flattenedFields = new Dictionary<string, FieldRule>();
             FlattenFields(body.Fields, flattenedFields, options);
@@ -55,43 +68,44 @@ namespace Valora.Api.Application.Schemas
             );
         }
 
-        private static void FlattenFields(JsonElement element, Dictionary<string, FieldRule> result, JsonSerializerOptions options, string prefix = "")
+        private static void FlattenFields(Dictionary<string, object> fields, Dictionary<string, FieldRule> result, JsonSerializerOptions options, string prefix = "")
         {
-            if (element.ValueKind != JsonValueKind.Object) return;
+            if (fields == null) return;
 
-            foreach (var property in element.EnumerateObject())
+            foreach (var property in fields)
             {
                 var value = property.Value;
-                if (value.ValueKind == JsonValueKind.Object)
+                if (value is Dictionary<string, object> nestedDict)
                 {
-                    string fullKey = string.IsNullOrEmpty(prefix) ? property.Name : $"{prefix}.{property.Name}";
+                    string fullKey = string.IsNullOrEmpty(prefix) ? property.Key : $"{prefix}.{property.Key}";
 
                     // Check if it's a FieldRule (has 'type' or 'ui') or a Nested Section
                     // Note: We use case-insensitive check for 'type', 'required', 'ui'
-                    bool isField = HasProperty(value, "type") || 
-                                   HasProperty(value, "required") || 
-                                   HasProperty(value, "ui") ||
-                                   HasProperty(value, "unique") ||
-                                   HasProperty(value, "maxLength") ||
-                                   HasProperty(value, "pattern") ||
-                                   HasProperty(value, "autoGenerate") ||
-                                   HasProperty(value, "isSensitive") ||
-                                   HasProperty(value, "default") ||
-                                   HasProperty(value, "defaultValue") ||
-                                   HasProperty(value, "options") ||
-                                   HasProperty(value, "readOnly");
+                    bool isField = nestedDict.ContainsKey("type") ||
+                                   nestedDict.ContainsKey("required") ||
+                                   nestedDict.ContainsKey("ui") ||
+                                   nestedDict.ContainsKey("unique") ||
+                                   nestedDict.ContainsKey("maxLength") ||
+                                   nestedDict.ContainsKey("pattern") ||
+                                   nestedDict.ContainsKey("autoGenerate") ||
+                                   nestedDict.ContainsKey("isSensitive") ||
+                                   nestedDict.ContainsKey("default") ||
+                                   nestedDict.ContainsKey("defaultValue") ||
+                                   nestedDict.ContainsKey("options") ||
+                                   nestedDict.ContainsKey("readOnly");
 
                     if (isField)
                     {
-                        try 
+                        try
                         {
-                            var fieldRule = value.Deserialize<FieldRule>(options);
+                            var json = JsonSerializer.Serialize(nestedDict, options);
+                            var fieldRule = JsonSerializer.Deserialize<FieldRule>(json, options);
                             if (fieldRule != null)
                             {
                                 result[fullKey] = fieldRule;
                             }
                         }
-                        catch 
+                        catch
                         {
                             // Fallback or ignore invalid field
                         }
@@ -99,24 +113,12 @@ namespace Valora.Api.Application.Schemas
                     else
                     {
                         // Treat as Section (Recurse)
-                        FlattenFields(value, result, options, fullKey);
+                        FlattenFields(nestedDict, result, options, fullKey);
                     }
                 }
             }
         }
 
-        private static bool HasProperty(JsonElement element, string propertyName)
-        {
-            // Case-insensitive check
-            foreach (var prop in element.EnumerateObject())
-            {
-                if (string.Equals(prop.Name, propertyName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
 
         /*
         public static ModuleSchema FromJson(ModuleSchemaEntity entity)
