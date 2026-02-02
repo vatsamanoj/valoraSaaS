@@ -11,14 +11,14 @@ namespace Valora.Tests
     /// Integration Tests for Sales Order End-to-End Flow
     /// Tests complete workflow: Load schema → Render form → Submit with temp values → Server calculates → Save
     /// </summary>
-    public class SalesOrderIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+    public class SalesOrderIntegrationTests : IClassFixture<TestWebApplicationFactory>
     {
-        private readonly WebApplicationFactory<Program> _factory;
+        private readonly TestWebApplicationFactory _factory;
         private readonly HttpClient _client;
         private readonly ITestOutputHelper _output;
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public SalesOrderIntegrationTests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
+        public SalesOrderIntegrationTests(TestWebApplicationFactory factory, ITestOutputHelper output)
         {
             _factory = factory;
             _client = factory.CreateClient();

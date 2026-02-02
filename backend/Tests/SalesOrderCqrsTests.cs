@@ -22,13 +22,13 @@ namespace Valora.Tests
     /// Tests command handlers, event sourcing verification, projection updates,
     /// consistency between write and read models, and outbox pattern verification
     /// </summary>
-    public class SalesOrderCqrsTests : IClassFixture<WebApplicationFactory<Program>>
+    public class SalesOrderCqrsTests : IClassFixture<TestWebApplicationFactory>
     {
-        private readonly WebApplicationFactory<Program> _factory;
+        private readonly TestWebApplicationFactory _factory;
         private readonly ITestOutputHelper _output;
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public SalesOrderCqrsTests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
+        public SalesOrderCqrsTests(TestWebApplicationFactory factory, ITestOutputHelper output)
         {
             _factory = factory;
             _output = output;

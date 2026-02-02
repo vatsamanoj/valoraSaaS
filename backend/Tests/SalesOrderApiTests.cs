@@ -13,14 +13,14 @@ namespace Valora.Tests
     /// Backend API Tests for Sales Order Template Extension
     /// Tests schema retrieval, calculation execution, and document totals
     /// </summary>
-    public class SalesOrderApiTests : IClassFixture<WebApplicationFactory<Program>>
+    public class SalesOrderApiTests : IClassFixture<TestWebApplicationFactory>
     {
-        private readonly WebApplicationFactory<Program> _factory;
+        private readonly TestWebApplicationFactory _factory;
         private readonly HttpClient _client;
         private readonly ITestOutputHelper _output;
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public SalesOrderApiTests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
+        public SalesOrderApiTests(TestWebApplicationFactory factory, ITestOutputHelper output)
         {
             _factory = factory;
             _client = factory.CreateClient();

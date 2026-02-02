@@ -13,14 +13,14 @@ namespace Valora.Tests.Functional
     /// Functional Tests for Sales Order Data Entry Workflows
     /// Tests actual data entry scenarios with real data values
     /// </summary>
-    public class SalesOrderDataEntryTests : IClassFixture<WebApplicationFactory<Program>>
+    public class SalesOrderDataEntryTests : IClassFixture<TestWebApplicationFactory>
     {
-        private readonly WebApplicationFactory<Program> _factory;
+        private readonly TestWebApplicationFactory _factory;
         private readonly HttpClient _client;
         private readonly ITestOutputHelper _output;
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public SalesOrderDataEntryTests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
+        public SalesOrderDataEntryTests(TestWebApplicationFactory factory, ITestOutputHelper output)
         {
             _factory = factory;
             _client = factory.CreateClient();
