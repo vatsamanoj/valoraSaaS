@@ -17,6 +17,17 @@ public class StartupTopicGuard
 
     public async Task EnsureAllTopicsSubscribed(IEnumerable<string> producedTopics)
     {
+        // Skip Kafka operations in test mode
+        var isTestMode = _config.GetValue<bool>("TestMode", false);
+        var kafkaEnabled = _config.GetValue<bool>("Kafka:Enabled", true);
+
+        if (isTestMode || !kafkaEnabled)
+        {
+            _logger.LogInformation("Skipping Kafka topic verification in test mode or when Kafka is disabled.");
+            await Task.CompletedTask;
+            return;
+        }
+
         _logger.LogInformation("Starting Startup Topic Guard check...");
 
         var bootstrapServers = _config["Kafka:BootstrapServers"] ?? "localhost:9092";
@@ -44,13 +55,13 @@ public class StartupTopicGuard
             // In a real production system, we might want to fail startup if critical topics are missing
             // or if the consumer group is not subscribed to them.
             // Since we use wildcard subscription "^valora\\..*", we are technically subscribed to anything matching.
-            
+
             await Task.CompletedTask;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to verify Kafka topics at startup.");
-            // We do not throw here to allow app to start even if Kafka is temporarily down, 
+            // We do not throw here to allow app to start even if Kafka is temporarily down,
             // relying on retry policies.
         }
     }

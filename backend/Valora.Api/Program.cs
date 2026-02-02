@@ -29,7 +29,14 @@ builder.Services.AddScoped<SmartProjectionService>();
 builder.Services.AddScoped<ProjectionManager>();
 
 builder.Services.AddHostedService<Valora.Api.Infrastructure.BackgroundJobs.OutboxProcessor>();
-builder.Services.AddHostedService<Valora.Api.Infrastructure.BackgroundJobs.KafkaConsumer>();
+
+// Only register Kafka consumer in non-test mode
+var isTestMode = builder.Configuration.GetValue<bool>("TestMode", false);
+var kafkaEnabled = builder.Configuration.GetValue<bool>("Kafka:Enabled", true);
+if (!isTestMode && kafkaEnabled)
+{
+    builder.Services.AddHostedService<Valora.Api.Infrastructure.BackgroundJobs.KafkaConsumer>();
+}
 
 builder.Services.AddSingleton<SchemaContext>();
 builder.Services.AddSingleton<ISchemaProvider, SchemaCache>();
