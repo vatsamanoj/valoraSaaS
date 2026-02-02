@@ -46,6 +46,104 @@
     "SpecialInstructions": { "type": "Text", "label": "Special Instructions (Custom)", "required": false },
     "Priority": { "type": "Text", "label": "Delivery Priority (Custom)", "required": false, "options": ["High", "Medium", "Low"] }
   },
+  "documentTotals": {
+    "fields": {
+      "subTotal": { "source": "Items", "formula": "SUM(LineTotal)", "label": "Sub-Total" },
+      "taxTotal": { "source": "Items", "formula": "SUM(TaxAmount)", "label": "Tax" },
+      "totalDiscount": { "source": "Items", "formula": "SUM(DiscountAmount)", "label": "Discount" },
+      "netTotal": { "formula": "subTotal + taxTotal - totalDiscount", "label": "Net Total" }
+    },
+    "displayConfig": {
+      "layout": "table",
+      "showLabels": true,
+      "decimalPlaces": 2
+    }
+  },
+  "calculationRules": {
+    "complexCalculation": true,
+    "serverSide": {
+      "lineItemCalculations": [
+        {
+          "targetField": "LineTotal",
+          "formula": "Quantity * UnitPrice",
+          "dependencies": ["Quantity", "UnitPrice"]
+        }
+      ],
+      "documentCalculations": [
+        {
+          "targetField": "TotalAmount",
+          "formula": "SUM(Items.LineTotal)",
+          "dependencies": ["Items.LineTotal"]
+        }
+      ],
+      "complexCalculations": [
+        {
+          "id": "discountCalculation",
+          "name": "Volume Discount",
+          "formula": "IF(TotalAmount > 1000, TotalAmount * 0.05, 0)",
+          "targetField": "DiscountAmount",
+          "triggerFields": ["TotalAmount"]
+        }
+      ]
+    }
+  },
+  "attachmentConfig": {
+    "documentLevel": {
+      "enabled": true,
+      "maxFiles": 10,
+      "maxFileSizeMB": 25,
+      "allowedTypes": ["pdf", "doc", "docx", "xls", "xlsx", "jpg", "png"],
+      "categories": [
+        { "id": "contract", "label": "Contract Documents" },
+        { "id": "invoice", "label": "Invoices" },
+        { "id": "other", "label": "Other Documents" }
+      ]
+    },
+    "lineLevel": {
+      "enabled": true,
+      "maxFiles": 5,
+      "maxFileSizeMB": 10,
+      "allowedTypes": ["pdf", "jpg", "png"],
+      "gridColumnConfig": {
+        "header": "Attachments",
+        "width": 100
+      }
+    }
+  },
+  "cloudStorage": {
+    "providers": [
+      {
+        "name": "aws-s3",
+        "type": "s3",
+        "isDefault": true,
+        "config": {
+          "bucketName": "valora-sales-documents",
+          "region": "us-east-1"
+        }
+      },
+      {
+        "name": "azure-blob",
+        "type": "azure",
+        "isDefault": false,
+        "config": {
+          "accountName": "valorastorage",
+          "containerName": "sales-documents"
+        }
+      }
+    ],
+    "globalSettings": {
+      "encryption": {
+        "enabled": true,
+        "algorithm": "AES256"
+      },
+      "lifecycleRules": [
+        {
+          "prefix": "temp/",
+          "expirationDays": 7
+        }
+      ]
+    }
+  },
   "ui": {
     "listFields": ["OrderNumber", "OrderDate", "CustomerId", "TotalAmount", "Status", "Priority"],
     "formGroups": [

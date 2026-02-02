@@ -73,7 +73,7 @@ namespace Valora.Api.Application.Schemas
         public const string ExtraData = "Extension"; // Backward compat
     }
     public record UiHint(
-    string Type,           // text, number, date, select, textarea
+    string? Type = null,           // text, number, date, select, textarea, lookup
     string? Label = null,
     string? Mask = null,
     string[]? Options = null,
@@ -81,8 +81,11 @@ namespace Valora.Api.Application.Schemas
     object? GridConfig = null,
     // Lookup Properties
     string? Lookup = null,
+    string? LookupModule = null,
     string? LookupField = null,
     string? DisplayField = null,
+    object? Filter = null,
+    string? SearchStrategy = null,
     Dictionary<string, string>? Mapping = null,
     int? DecimalPlaces = null // 🔥 NEW
     );

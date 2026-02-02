@@ -2,6 +2,7 @@ namespace Valora.Api.Application.Schemas.TemplateConfig;
 
 public class CalculationRulesConfig
 {
+    public bool ComplexCalculation { get; set; } = false;
     public ServerSideCalculations ServerSide { get; set; } = new();
     public ClientSideCalculations ClientSide { get; set; } = new();
 }

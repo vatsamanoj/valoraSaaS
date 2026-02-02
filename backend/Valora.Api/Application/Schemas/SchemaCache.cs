@@ -144,9 +144,21 @@ public sealed class SchemaCache : ISchemaProvider
             {
                 updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.shouldPost", schemaDoc["shouldPost"]));
             }
-             if (schemaDoc.Contains("documentTotals"))
+            if (schemaDoc.Contains("documentTotals"))
             {
                 updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.documentTotals", schemaDoc["documentTotals"]));
+            }
+            if (schemaDoc.Contains("calculationRules"))
+            {
+                updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.calculationRules", schemaDoc["calculationRules"]));
+            }
+            if (schemaDoc.Contains("attachmentConfig"))
+            {
+                updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.attachmentConfig", schemaDoc["attachmentConfig"]));
+            }
+            if (schemaDoc.Contains("cloudStorage"))
+            {
+                updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.cloudStorage", schemaDoc["cloudStorage"]));
             }
         }
 
@@ -279,6 +291,21 @@ public sealed class SchemaCache : ISchemaProvider
             if (versionDoc.TryGetValue("documentTotals", out var documentTotalsValue) && !documentTotalsValue.IsBsonNull)
             {
                 schemaBody.Add("documentTotals", documentTotalsValue);
+            }
+
+            if (versionDoc.TryGetValue("calculationRules", out var calculationRulesValue) && !calculationRulesValue.IsBsonNull)
+            {
+                schemaBody.Add("calculationRules", calculationRulesValue);
+            }
+
+            if (versionDoc.TryGetValue("attachmentConfig", out var attachmentConfigValue) && !attachmentConfigValue.IsBsonNull)
+            {
+                schemaBody.Add("attachmentConfig", attachmentConfigValue);
+            }
+
+            if (versionDoc.TryGetValue("cloudStorage", out var cloudStorageValue) && !cloudStorageValue.IsBsonNull)
+            {
+                schemaBody.Add("cloudStorage", cloudStorageValue);
             }
 
             var finalSchemaJson = schemaBody.ToJson(jsonSettings);

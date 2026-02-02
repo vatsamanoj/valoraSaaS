@@ -66,5 +66,25 @@
           "layout": "stacked",
           "position": "bottom"
       }
+  },
+  "calculationRules": {
+    "complexCalculation": false,
+    "serverSide": {
+      "lineItemCalculations": [
+        {
+          "targetField": "LineTotal",
+          "formula": "Quantity * UnitPrice",
+          "dependencies": ["Quantity", "UnitPrice"]
+        }
+      ],
+      "documentCalculations": [
+        {
+          "targetField": "TotalAmount",
+          "formula": "SUM(Items.LineTotal)",
+          "dependencies": ["Items.LineTotal"]
+        }
+      ],
+      "complexCalculations": []
+    }
   }
 }
