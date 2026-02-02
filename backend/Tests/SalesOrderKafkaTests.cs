@@ -22,14 +22,14 @@ namespace Valora.Tests
     /// event consumption by projection services, Kafka topic verification,
     /// and message serialization/deserialization
     /// </summary>
-    public class SalesOrderKafkaTests : IClassFixture<WebApplicationFactory<Program>>
+    public class SalesOrderKafkaTests : IClassFixture<TestWebApplicationFactory>
     {
-        private readonly WebApplicationFactory<Program> _factory;
+        private readonly TestWebApplicationFactory _factory;
         private readonly ITestOutputHelper _output;
         private readonly JsonSerializerOptions _jsonOptions;
         private readonly string _bootstrapServers;
 
-        public SalesOrderKafkaTests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
+        public SalesOrderKafkaTests(TestWebApplicationFactory factory, ITestOutputHelper output)
         {
             _factory = factory;
             _output = output;

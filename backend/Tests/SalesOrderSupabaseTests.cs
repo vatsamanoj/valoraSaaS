@@ -18,13 +18,13 @@ namespace Valora.Tests
     /// Sales Order Supabase (PostgreSQL) Persistence Tests
     /// Tests direct database operations, EF Core persistence, and Dapper queries
     /// </summary>
-    public class SalesOrderSupabaseTests : IClassFixture<WebApplicationFactory<Program>>
+    public class SalesOrderSupabaseTests : IClassFixture<TestWebApplicationFactory>
     {
-        private readonly WebApplicationFactory<Program> _factory;
+        private readonly TestWebApplicationFactory _factory;
         private readonly ITestOutputHelper _output;
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public SalesOrderSupabaseTests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
+        public SalesOrderSupabaseTests(TestWebApplicationFactory factory, ITestOutputHelper output)
         {
             _factory = factory;
             _output = output;

@@ -15,13 +15,13 @@ namespace Valora.Tests
     /// Tests read model projections, event store, schema migration verification,
     /// and performance tests for queries
     /// </summary>
-    public class SalesOrderMongoIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+    public class SalesOrderMongoIntegrationTests : IClassFixture<TestWebApplicationFactory>
     {
-        private readonly WebApplicationFactory<Program> _factory;
+        private readonly TestWebApplicationFactory _factory;
         private readonly ITestOutputHelper _output;
         private readonly MongoDbContext _mongoDb;
 
-        public SalesOrderMongoIntegrationTests(WebApplicationFactory<Program> factory, ITestOutputHelper output)
+        public SalesOrderMongoIntegrationTests(TestWebApplicationFactory factory, ITestOutputHelper output)
         {
             _factory = factory;
             _output = output;
