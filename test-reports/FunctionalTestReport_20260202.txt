@@ -1,0 +1,230 @@
+# Valora Sales Order Functional Test Report
+
+**Generated:** 2026-02-02 12:42:37 UTC
+**Test Suite:** Sales Order Data Entry Workflows
+
+## Test Execution Summary
+
+| Metric | Value |
+|--------|-------|
+| Start Time | 2026-02-02 12:42:37 |
+| Test Runner | PowerShell |
+| Output Path | test-reports |
+
+## Test Categories
+
+### Data Entry Tests
+
+**Description:** Tests actual data entry workflows with real data values
+
+**Test Filter:** FullyQualifiedName~DataEntry
+
+**Results:**
+
+| Metric | Value |
+|--------|-------|
+| Total Tests | 0 |
+| Passed | 0 |
+| Failed | 0 |
+| Skipped | 25 |
+| Duration | 0s |
+| Status | ⏸️ TESTS NOT EXECUTED (Compilation Errors) |
+
+---
+
+## Overall Summary
+
+| Metric | Value |
+|--------|-------|
+| Total Categories | 1 |
+| Total Tests | 25 |
+| Total Passed | 0 |
+| Total Failed | 0 |
+| Total Skipped | 25 |
+| Overall Duration | 0s |
+| Overall Status | ⏸️ TESTS NOT EXECUTED (Compilation Errors) |
+
+---
+
+## Data Entry Wise Summary
+
+### Test Scenarios Covered
+
+| Scenario | Tests | Status |
+|----------|-------|--------|
+| Complete Sales Order Creation | 1 | ⏸️ |
+| Calculation Rules (Line Totals) | 4 | ⏸️ |
+| Document Totals Calculation | 1 | ⏸️ |
+| Attachment Configuration | 1 | ⏸️ |
+| Cloud Storage Configuration | 1 | ⏸️ |
+| Schema Version Compatibility (v1-v7) | 7 | ⏸️ |
+| Complex Calculations | 3 | ⏸️ |
+| Smart Projection Data Integrity | 1 | ⏸️ |
+| Validation Rules | 2 | ⏸️ |
+| Update Sales Order | 1 | ⏸️ |
+| Status Workflow | 1 | ⏸️ |
+| Bulk Data Entry | 1 | ⏸️ |
+| Search and Filter | 2 | ⏸️ |
+
+---
+
+## Feature Coverage
+
+| Feature | Tested | Status |
+|---------|--------|--------|
+| Sales Order Creation | Yes | ⏸️ |
+| Line Item Calculations | Yes | ⏸️ |
+| Document Totals | Yes | ⏸️ |
+| Attachment Uploads | Yes | ⏸️ |
+| Cloud Storage | Yes | ⏸️ |
+| Schema Versions (v1-v7) | Yes | ⏸️ |
+| Complex Calculations | Yes | ⏸️ |
+| Smart Projections | Yes | ⏸️ |
+| Validation | Yes | ⏸️ |
+| Status Workflow | Yes | ⏸️ |
+| Bulk Operations | Yes | ⏸️ |
+| Search/Filter | Yes | ⏸️ |
+
+---
+
+## Compilation Errors Analysis
+
+### Error Summary
+
+| Error Type | Count | Affected Files |
+|------------|-------|----------------|
+| Missing Properties | 35 | SalesOrderCqrsTests.cs, SalesOrderSupabaseTests.cs |
+| Wrong Parameter Names | 15 | SalesOrderCqrsTests.cs, SalesOrderSupabaseTests.cs |
+| Type Conversion Errors | 20 | SalesOrderCqrsTests.cs, SalesOrderSupabaseTests.cs, SalesOrderKafkaTests.cs |
+| Missing Constructor Parameters | 3 | SalesOrderCqrsTests.cs |
+
+### Detailed Error Analysis
+
+#### 1. Missing Properties
+
+**Affected Classes:**
+- `SalesOrderItem`: Missing `CreatedAt`
+- `SalesOrder`: Missing `ModifiedAt`, `ModifiedBy` (should use `UpdatedAt`, `UpdatedBy`)
+- `GlobalStorageSettings`: Missing `EncryptionAtRest`, `VersioningEnabled`, `RetentionDays`
+- `CalculationParameter`: Missing `Type`, `DefaultValue` (should use `DataType`)
+
+**Fix Required:**
+- Update test code to use correct property names
+- Remove references to non-existent properties
+
+#### 2. Wrong Parameter Names
+
+**Affected Commands:**
+- `CreateSalesOrderCommand`: Using `autoPost` instead of `AutoPost`
+- Using `orderNumber` parameter that doesn't exist
+
+**Fix Required:**
+- Update test code to use correct parameter names
+- Match actual command signature
+
+#### 3. Type Conversion Errors
+
+**Affected Types:**
+- `SalesOrderStatus`: Using string values instead of enum
+
+**Fix Required:**
+- Use enum values instead of strings
+- Update test assertions
+
+#### 4. Missing Constructor Parameters
+
+**Affected Classes:**
+- `ProjectionManager`: Missing `logger` parameter
+
+**Fix Required:**
+- Add missing parameters to constructor calls
+
+---
+
+## Recommendations
+
+### Immediate Actions
+
+1. **Fix Compilation Errors**
+   - Update test files to match current API structure
+   - Remove references to non-existent properties
+   - Use correct parameter names and types
+
+2. **Run Functional Tests**
+   - Execute data entry tests after fixing compilation errors
+   - Generate actual test results
+   - Validate all test scenarios
+
+3. **Update Test Documentation**
+   - Document actual test results
+   - Track test coverage metrics
+   - Identify areas needing improvement
+
+### Long-term Improvements
+
+1. **Test Automation**
+   - Integrate functional tests into CI/CD pipeline
+   - Run tests on every commit
+   - Generate automated test reports
+
+2. **Test Data Management**
+   - Create reusable test data fixtures
+   - Implement test data factories
+   - Manage test data lifecycle
+
+3. **Test Coverage**
+   - Increase test coverage for all features
+   - Add edge case tests
+   - Implement performance tests
+
+4. **Test Reporting**
+   - Enhance test report generation
+   - Add trend analysis
+   - Implement test result notifications
+
+---
+
+## Test Files Created
+
+### 1. SalesOrderDataEntryTests.cs
+
+**Location:** backend/Tests/SalesOrderDataEntryTests.cs
+
+**Test Class:** SalesOrderDataEntryTests
+
+**Test Methods:** 25
+
+**Purpose:** Functional tests for Sales Order data entry workflows
+
+**Status:** Created
+
+### 2. RunFunctionalTests.ps1
+
+**Location:** backend/Tests/RunFunctionalTests.ps1
+
+**Features:**
+- Run all functional tests
+- Generate detailed reports
+- Support for test filtering
+- JSON and Markdown output
+
+**Status:** Created
+
+---
+
+## Conclusion
+
+This functional test suite covers complete data entry workflows for Sales Orders, including:
+
+- Complete data entry with all fields
+- Calculation rules and document totals
+- Attachment and cloud storage configuration
+- Schema version compatibility (v1-v7)
+- Complex calculations with external data
+- Smart projections
+- Validation rules
+- Status workflows
+- Bulk operations
+- Search and filtering
+
+Once the compilation errors are fixed, these tests can be executed to validate the Sales Order functionality.

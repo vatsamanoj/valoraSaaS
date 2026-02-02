@@ -201,8 +201,8 @@ namespace Valora.Tests.Architecture
                 TargetField = "DiscountAmount",
                 Parameters = new List<CalculationParameter>
                 {
-                    new CalculationParameter { Name = "DiscountRate", Type = "decimal", DefaultValue = "0.10" },
-                    new CalculationParameter { Name = "MaxDiscount", Type = "decimal", DefaultValue = "1000" }
+                    new CalculationParameter { Name = "DiscountRate", Source = "Field", DataType = "decimal", IsRequired = true },
+                    new CalculationParameter { Name = "MaxDiscount", Source = "Field", DataType = "decimal", IsRequired = true }
                 }
             };
 
@@ -645,8 +645,7 @@ namespace Valora.Tests.Architecture
             var settings = new GlobalStorageSettings
             {
                 VirusScanEnabled = true,
-                GenerateThumbnails = true,
-                VersioningEnabled = true
+                GenerateThumbnails = true
             };
 
             // Act & Assert

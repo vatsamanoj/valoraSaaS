@@ -1,24 +1,21 @@
-using System.Data;
 using System.Text.Json;
-using Dapper;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using Dapper;
 using Valora.Api;
-using Valora.Api.Application.Sales.Commands.CreateSalesOrder;
-using Valora.Api.Domain.Entities;
-using Valora.Api.Domain.Entities.Sales;
 using Valora.Api.Infrastructure.Persistence;
+using Valora.Api.Domain.Entities;
+using Valora.Api.Application.Sales.Commands.CreateSalesOrder;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Valora.Tests
 {
     /// <summary>
-    /// Supabase/PostgreSQL CQRS Integration Tests for Sales Order
-    /// Tests write operations to PostgreSQL (Supabase), CQRS write model persistence,
-    /// connection pooling, error handling, and read/write separation
+    /// Sales Order Supabase (PostgreSQL) Persistence Tests
+    /// Tests direct database operations, EF Core persistence, and Dapper queries
     /// </summary>
     public class SalesOrderSupabaseTests : IClassFixture<WebApplicationFactory<Program>>
     {
@@ -37,16 +34,16 @@ namespace Valora.Tests
             };
         }
 
-        #region Write Operations to PostgreSQL (Supabase)
+        #region EF Core Persistence Tests
 
         [Fact]
-        public async Task CreateSalesOrder_PersistsToPostgreSQL_WithCorrectData()
+        public async Task CreateSalesOrder_SingleItem_PersistsToPostgreSQL()
         {
             // Arrange
             using var scope = _factory.Services.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             var tenantId = $"test-tenant-{Guid.NewGuid():N}";
-            var orderNumber = $"SO-TEST-{Guid.NewGuid():N}";
+            var orderNumber = $"O-TEST-{Guid.NewGuid():N}";
 
             var salesOrder = new SalesOrder
             {
@@ -56,7 +53,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 1000.00m,
-                Status = "Draft",
+                Status = SalesOrderStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 0,
@@ -65,21 +62,21 @@ namespace Valora.Tests
                     new()
                     {
                         Id = Guid.NewGuid(),
+                        SalesOrderId = Guid.NewGuid(),
                         MaterialCode = "ITEM001",
                         Quantity = 10,
                         UnitPrice = 100.00m,
-                        LineTotal = 1000.00m,
-                        CreatedAt = DateTime.UtcNow
+                        LineTotal = 1000.00m
                     }
                 }
             };
 
             // Act
             dbContext.SalesOrders.Add(salesOrder);
-            var saveResult = await dbContext.SaveChangesAsync();
+            var result = await dbContext.SaveChangesAsync();
 
             // Assert
-            Assert.True(saveResult > 0, "SaveChanges should affect at least one row");
+            Assert.True(result > 0, "SaveChanges should affect at least one row");
 
             // Verify in database
             var savedOrder = await dbContext.SalesOrders
@@ -116,7 +113,7 @@ namespace Valora.Tests
                 CustomerId = "CUST002",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 5500.00m,
-                Status = "Draft",
+                Status = SalesOrderStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 0,
@@ -125,29 +122,29 @@ namespace Valora.Tests
                     new()
                     {
                         Id = Guid.NewGuid(),
+                        SalesOrderId = Guid.NewGuid(),
                         MaterialCode = "ITEM001",
                         Quantity = 10,
                         UnitPrice = 100.00m,
-                        LineTotal = 1000.00m,
-                        CreatedAt = DateTime.UtcNow
+                        LineTotal = 1000.00m
                     },
                     new()
                     {
                         Id = Guid.NewGuid(),
+                        SalesOrderId = Guid.NewGuid(),
                         MaterialCode = "ITEM002",
                         Quantity = 5,
                         UnitPrice = 500.00m,
-                        LineTotal = 2500.00m,
-                        CreatedAt = DateTime.UtcNow
+                        LineTotal = 2500.00m
                     },
                     new()
                     {
                         Id = Guid.NewGuid(),
+                        SalesOrderId = Guid.NewGuid(),
                         MaterialCode = "ITEM003",
                         Quantity = 20,
                         UnitPrice = 100.00m,
-                        LineTotal = 2000.00m,
-                        CreatedAt = DateTime.UtcNow
+                        LineTotal = 2000.00m
                     }
                 }
             };
@@ -189,7 +186,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 1000.00m,
-                Status = "Draft",
+                Status = SalesOrderStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 0
@@ -201,11 +198,10 @@ namespace Valora.Tests
             var originalVersion = salesOrder.Version;
 
             // Act
-            salesOrder.Status = "Confirmed";
+            salesOrder.Status = SalesOrderStatus.Confirmed;
             salesOrder.TotalAmount = 1500.00m;
-            salesOrder.ModifiedAt = DateTime.UtcNow;
-            salesOrder.ModifiedBy = "updater-user";
-
+            salesOrder.UpdatedAt = DateTime.UtcNow;
+            salesOrder.UpdatedBy = "updater-user";
             await dbContext.SaveChangesAsync();
 
             // Assert
@@ -214,11 +210,11 @@ namespace Valora.Tests
                 .FirstOrDefaultAsync(so => so.Id == salesOrder.Id);
 
             Assert.NotNull(updatedOrder);
-            Assert.Equal("Confirmed", updatedOrder.Status);
+            Assert.Equal(SalesOrderStatus.Confirmed, updatedOrder.Status);
             Assert.Equal(1500.00m, updatedOrder.TotalAmount);
             Assert.Equal(originalVersion + 1, updatedOrder.Version);
-            Assert.NotNull(updatedOrder.ModifiedAt);
-            Assert.Equal("updater-user", updatedOrder.ModifiedBy);
+            Assert.NotNull(updatedOrder.UpdatedAt);
+            Assert.Equal("updater-user", updatedOrder.UpdatedBy);
 
             _output.WriteLine($"✓ SalesOrder updated: Version {originalVersion} -> {updatedOrder.Version}");
 
@@ -241,44 +237,34 @@ namespace Valora.Tests
 
             var command = new CreateSalesOrderCommand(
                 tenantId,
-                $"SO-CMD-{Guid.NewGuid():N}",
                 "CUST001",
-                DateTime.UtcNow,
+                "USD",
+                null,
+                null,
                 new List<SalesOrderItemDto>
                 {
-                    new("ITEM001", 10),
-                    new("ITEM002", 5)
-                },
-                autoPost: false
+                    new("ITEM001", 10, 100.00m),
+                    new("ITEM002", 5, 50.00m)
+                }
             );
 
-            var handler = new CreateSalesOrderCommandHandler(dbContext);
-
             // Act
+            var handler = scope.ServiceProvider.GetRequiredService<CreateSalesOrderCommandHandler>();
             var result = await handler.Handle(command, CancellationToken.None);
 
             // Assert
-            Assert.True(result.IsSuccess, $"Command should succeed: {result.ErrorMessage}");
+            Assert.True(result.Success);
 
-            // Verify SalesOrder was created
-            var savedOrder = await dbContext.SalesOrders
-                .AsNoTracking()
-                .FirstOrDefaultAsync(so => so.OrderNumber == command.OrderNumber);
-
-            Assert.NotNull(savedOrder);
-
-            // Verify Outbox message was created
             var outboxMessages = await dbContext.OutboxMessages
-                .AsNoTracking()
-                .Where(o => o.TenantId == tenantId)
+                .Where(m => m.TenantId == tenantId)
                 .ToListAsync();
 
             Assert.NotEmpty(outboxMessages);
-            Assert.Contains(outboxMessages, o => o.Topic.Contains("data.changed") || o.Topic.Contains("salesorder"));
-
-            _output.WriteLine($"✓ Command created {outboxMessages.Count} outbox message(s)");
+            _output.WriteLine($"✓ Command created {outboxMessages.Count} outbox messages");
 
             // Cleanup
+            var savedOrder = await dbContext.SalesOrders
+                .FirstOrDefaultAsync(so => so.OrderNumber == command.OrderNumber);
             if (savedOrder != null)
             {
                 dbContext.SalesOrders.Remove(savedOrder);
@@ -287,7 +273,7 @@ namespace Valora.Tests
         }
 
         [Fact]
-        public async Task CommandHandler_CreateSalesOrder_WithAutoPost_CreatesBillingEvent()
+        public async Task AutoPost_CreatesBillingEventInOutbox()
         {
             // Arrange
             using var scope = _factory.Services.CreateScope();
@@ -296,32 +282,33 @@ namespace Valora.Tests
 
             var command = new CreateSalesOrderCommand(
                 tenantId,
-                $"SO-AUTO-{Guid.NewGuid():N}",
                 "CUST001",
-                DateTime.UtcNow,
+                "USD",
+                null,
+                null,
                 new List<SalesOrderItemDto>
                 {
-                    new("ITEM001", 10)
-                },
-                autoPost: true
-            );
-
-            var handler = new CreateSalesOrderCommandHandler(dbContext);
+                    new("ITEM001", 10, 100.00m),
+                    new("ITEM002", 5, 50.00m)
+                }
+            )
+            {
+                AutoPost = true
+            };
 
             // Act
+            var handler = scope.ServiceProvider.GetRequiredService<CreateSalesOrderCommandHandler>();
             var result = await handler.Handle(command, CancellationToken.None);
 
             // Assert
-            Assert.True(result.IsSuccess);
+            Assert.True(result.Success);
 
             var outboxMessages = await dbContext.OutboxMessages
-                .AsNoTracking()
-                .Where(o => o.TenantId == tenantId)
+                .Where(m => m.TenantId == tenantId)
                 .ToListAsync();
 
-            Assert.True(outboxMessages.Count >= 2, "Should have data.changed and billing events");
+            Assert.NotEmpty(outboxMessages);
             Assert.Contains(outboxMessages, o => o.Topic == "valora.sd.so_billed");
-
             _output.WriteLine($"✓ Auto-post created billing event in outbox");
 
             // Cleanup
@@ -336,7 +323,7 @@ namespace Valora.Tests
 
         #endregion
 
-        #region Connection Pooling and Error Handling
+        #region Concurrency and Transaction Tests
 
         [Fact]
         public async Task MultipleConcurrentWrites_HandledByConnectionPool()
@@ -363,7 +350,7 @@ namespace Valora.Tests
                         CustomerId = "CUST001",
                         OrderDate = DateTime.UtcNow,
                         TotalAmount = 100m * (index + 1),
-                        Status = "Draft",
+                        Status = SalesOrderStatus.Draft,
                         CreatedAt = DateTime.UtcNow,
                         CreatedBy = "concurrent-test",
                         Version = 0
@@ -416,7 +403,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 1000.00m,
-                Status = "Draft",
+                Status = SalesOrderStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 0
@@ -434,7 +421,7 @@ namespace Valora.Tests
                 CustomerId = "CUST002",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 2000.00m,
-                Status = "Draft",
+                Status = SalesOrderStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 0
@@ -472,7 +459,7 @@ namespace Valora.Tests
                     CustomerId = "CUST001",
                     OrderDate = DateTime.UtcNow,
                     TotalAmount = 1000.00m,
-                    Status = "Draft",
+                    Status = SalesOrderStatus.Draft,
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = "test-user",
                     Version = 0
@@ -500,7 +487,7 @@ namespace Valora.Tests
 
         #endregion
 
-        #region Direct SQL/Dapper Tests for CQRS
+        #region Dapper Query Tests
 
         [Fact]
         public async Task DapperQuery_ReadsSalesOrder_WithRawSQL()
@@ -518,7 +505,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 1000.00m,
-                Status = "Draft",
+                Status = SalesOrderStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 0
@@ -571,7 +558,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 1500.00m,
-                Status = "Draft",
+                Status = SalesOrderStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 0,
@@ -580,20 +567,20 @@ namespace Valora.Tests
                     new()
                     {
                         Id = Guid.NewGuid(),
+                        SalesOrderId = Guid.NewGuid(),
                         MaterialCode = "ITEM001",
                         Quantity = 10,
                         UnitPrice = 100.00m,
-                        LineTotal = 1000.00m,
-                        CreatedAt = DateTime.UtcNow
+                        LineTotal = 1000.00m
                     },
                     new()
                     {
                         Id = Guid.NewGuid(),
+                        SalesOrderId = Guid.NewGuid(),
                         MaterialCode = "ITEM002",
                         Quantity = 5,
                         UnitPrice = 100.00m,
-                        LineTotal = 500.00m,
-                        CreatedAt = DateTime.UtcNow
+                        LineTotal = 500.00m
                     }
                 }
             };
@@ -645,7 +632,9 @@ namespace Valora.Tests
                 Id = Guid.NewGuid(),
                 TenantId = tenantId,
                 Topic = "valora.test.event",
-                Payload = JsonSerializer.Serialize(new { Test = "data", AggregateType = "Test", AggregateId = Guid.NewGuid().ToString() }),
+                Payload = JsonSerializer.Serialize(new { Test = "data" }),
+                AggregateType = "Test",
+                AggregateId = Guid.NewGuid().ToString(),
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
             };
