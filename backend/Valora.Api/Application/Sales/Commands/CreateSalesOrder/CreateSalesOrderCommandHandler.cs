@@ -52,7 +52,7 @@ public class CreateSalesOrderCommandHandler : IRequestHandler<CreateSalesOrderCo
         {
             Id = Guid.NewGuid(),
             TenantId = request.TenantId,
-            OrderNumber = $"SO-{DateTime.UtcNow.Ticks}", // Simple generation
+            OrderNumber = request.OrderNumber ?? $"SO-{Guid.NewGuid():N}",
             OrderDate = DateTime.UtcNow,
             CustomerId = request.CustomerId,
             Currency = request.Currency,

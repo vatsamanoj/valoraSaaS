@@ -61,7 +61,8 @@ namespace Valora.Tests
                     new("ITEM001", 10),
                     new("ITEM002", 5)
                 },
-                false
+                false,
+                orderNumber
             );
 
             var handler = new CreateSalesOrderCommandHandler(dbContext);
@@ -70,10 +71,10 @@ namespace Valora.Tests
             var result = await handler.Handle(command, CancellationToken.None);
 
             // Assert
-            Assert.True(result.Success, $"Command failed: {result.Message}");
+            Assert.True(result.Success, $"Command failed: {result.Data}");
             Assert.NotNull(result.Data);
 
-            var orderId = ((JsonElement)result.Data).GetProperty("Id").GetString();
+            var orderId = result.Data.ToString();
             Assert.NotNull(orderId);
 
             // Verify in database
@@ -90,7 +91,7 @@ namespace Valora.Tests
             _output.WriteLine($"✓ CreateSalesOrderCommand created order: {orderId}");
 
             // Cleanup
-            dbContext.SalesOrders.Remove(savedOrder);
+            if (savedOrder != null) dbContext.SalesOrders.Remove(savedOrder);
             await dbContext.SaveChangesAsync();
         }
 
@@ -111,7 +112,8 @@ namespace Valora.Tests
                 null,
                 null,
                 new List<SalesOrderItemDto> { new("ITEM001", 10) },
-                false
+                false,
+                orderNumber
             );
 
             var handler = new CreateSalesOrderCommandHandler(dbContext);
@@ -126,14 +128,14 @@ namespace Valora.Tests
                 null,
                 null,
                 new List<SalesOrderItemDto> { new("ITEM002", 5) },
-                false
+                false,
+                orderNumber
             );
 
             // This should throw due to unique constraint
             await Assert.ThrowsAsync<DbUpdateException>(async () =>
             {
                 await handler.Handle(secondCommand, CancellationToken.None);
-                await dbContext.SaveChangesAsync();
             });
 
             _output.WriteLine($"✓ Duplicate order number correctly rejected");
@@ -202,7 +204,11 @@ namespace Valora.Tests
             _output.WriteLine($"✓ BillSalesOrderCommand billed order and created outbox event");
 
             // Cleanup
-            dbContext.SalesOrders.Remove(billedOrder);
+            var orderToRemove = await dbContext.SalesOrders.FindAsync(order.Id);
+            if (orderToRemove != null)
+            {
+                dbContext.SalesOrders.Remove(orderToRemove);
+            }
             dbContext.OutboxMessages.RemoveRange(outboxMessages);
             await dbContext.SaveChangesAsync();
         }
@@ -264,7 +270,7 @@ namespace Valora.Tests
             _output.WriteLine($"✓ BillSalesOrderCommand correctly rejected already billed order");
 
             // Cleanup
-            dbContext.SalesOrders.Remove(order);
+            if (order != null) dbContext.SalesOrders.Remove(order);
             await dbContext.SaveChangesAsync();
         }
 
@@ -332,8 +338,8 @@ namespace Valora.Tests
             _output.WriteLine($"✓ Event sourcing: Creation event generated");
 
             // Cleanup
-            dbContext.SalesOrders.Remove(order);
-            dbContext.OutboxMessages.Remove(savedEvent);
+            if (order != null) dbContext.SalesOrders.Remove(order);
+            if (savedEvent != null) dbContext.OutboxMessages.Remove(savedEvent);
             await dbContext.SaveChangesAsync();
         }
 
@@ -380,7 +386,7 @@ namespace Valora.Tests
             _output.WriteLine($"✓ Event sourcing: Version correctly incremented to {savedOrder.Version}");
 
             // Cleanup
-            dbContext.SalesOrders.Remove(savedOrder);
+            if (savedOrder != null) dbContext.SalesOrders.Remove(savedOrder);
             await dbContext.SaveChangesAsync();
         }
 
@@ -588,7 +594,7 @@ namespace Valora.Tests
                 { "OrderNumber", order.OrderNumber },
                 { "CustomerId", order.CustomerId },
                 { "TotalAmount", (double)order.TotalAmount },
-                { "Status", order.Status },
+                { "Status", (int)order.Status },
                 { "Version", (int)order.Version },
                 { "Items", new BsonArray(order.Items.Select(i => new BsonDocument
                     {
@@ -619,7 +625,7 @@ namespace Valora.Tests
             Assert.NotNull(readModel);
             Assert.Equal(writeModel.OrderNumber, readModel["OrderNumber"].AsString);
             Assert.Equal(writeModel.TotalAmount, (decimal)readModel["TotalAmount"].AsDouble);
-            Assert.Equal(writeModel.Status.ToString(), readModel["Status"].AsString);
+            Assert.Equal((int)writeModel.Status, readModel["Status"].AsInt32);
             Assert.Equal((int)writeModel.Version, readModel["Version"].AsInt32);
             Assert.Equal(writeModel.Items.Count, readModel["Items"].AsBsonArray.Count);
 
@@ -774,8 +780,8 @@ namespace Valora.Tests
             _output.WriteLine($"✓ Outbox pattern: Order and message saved atomically");
 
             // Cleanup
-            dbContext.SalesOrders.Remove(savedOrder);
-            dbContext.OutboxMessages.Remove(savedMessage);
+            dbContext.SalesOrders.Remove(order);
+            dbContext.OutboxMessages.Remove(outboxMessage);
             await dbContext.SaveChangesAsync();
         }
 

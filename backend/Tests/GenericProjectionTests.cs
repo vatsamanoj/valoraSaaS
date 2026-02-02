@@ -109,7 +109,7 @@ namespace Valora.Tests.Architecture
 
             // Act
             using var doc = JsonDocument.Parse(eventPayload);
-            var idProp = doc.RootElement.GetProperty("AggregateId");
+            var idProp = doc.RootElement.GetProperty("aggregateId");
             var canParseGuid = Guid.TryParse(idProp.GetString(), out _);
 
             // Assert

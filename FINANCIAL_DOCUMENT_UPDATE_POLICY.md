@@ -95,3 +95,5 @@ CRITICAL ARCHITECTURE RULES (MUST FOLLOW):
 This is a FINANCIAL SYSTEM. Correctness > Cleverness > Performance.
 
 If any instruction conflicts with these rules, THESE RULES WIN.
+
+**NOTE:** The test suite is currently experiencing intermittent failures due to database connectivity issues. Please ensure that the PostgreSQL and MongoDB containers are running and accessible before executing the tests. Additionally, verify that the connection strings in `appsettings.Test.json` are correctly configured.

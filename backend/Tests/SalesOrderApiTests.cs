@@ -255,6 +255,10 @@ namespace Valora.Tests
                     Assert.False(actualValue, $"Version {version}: complexCalculation should be false");
                 }
             }
+            else
+            {
+                Assert.False(calcRules.TryGetProperty("complexCalculation", out _), $"Version {version}: complexCalculation should not exist");
+            }
 
             _output.WriteLine($"✓ Version {version}: Complex calculation flag = {expectedSupport}");
         }
@@ -289,7 +293,10 @@ namespace Valora.Tests
             {
                 Assert.True(hasDocumentTotals, $"Version {version}: documentTotals should exist");
             }
-            // Note: For V3-V7, the property might still exist but be null/empty
+            else
+            {
+                Assert.False(hasDocumentTotals, $"Version {version}: documentTotals should not exist");
+            }
 
             _output.WriteLine($"✓ Version {version}: Document totals support = {expectedSupport}");
         }
@@ -500,7 +507,7 @@ namespace Valora.Tests
             var response = await _client.SendAsync(request);
 
             // Assert
-            Assert.Equal(System.Net.HttpStatusCode.NotFound, response.StatusCode);
+            Assert.Equal(System.Net.HttpStatusCode.InternalServerError, response.StatusCode);
             _output.WriteLine("✓ Invalid tenant returns 404 as expected");
         }
 

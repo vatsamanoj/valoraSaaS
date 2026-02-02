@@ -5,7 +5,8 @@ namespace Valora.Api.Application.Schemas
         Task<ModuleSchema> GetSchemaAsync(
             string tenantId,
             string module,
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken,
+            int? version = null);
 
         Task SeedSchemaAsync(string tenantId, string module, CancellationToken cancellationToken); // 🔥 NEW
 

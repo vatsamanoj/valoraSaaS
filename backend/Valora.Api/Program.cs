@@ -43,6 +43,7 @@ builder.Services.AddSingleton<ISchemaProvider, SchemaCache>();
 builder.Services.AddScoped<ISchemaSyncService, SchemaSyncService>();
 builder.Services.AddScoped<ScreenPublishService>();
 builder.Services.AddScoped<Valora.Api.Application.Services.SchemaValidator>();
+builder.Services.AddScoped<Valora.Api.Application.Services.CalculationService>();
 builder.Services.AddScoped<FiIntegrationService>();
 builder.Services.AddScoped<Valora.Api.Application.Finance.Services.FinanceDataConsistencyService>();
 builder.Services.AddTransient<Valora.Api.Infrastructure.BackgroundJobs.StartupTopicGuard>();

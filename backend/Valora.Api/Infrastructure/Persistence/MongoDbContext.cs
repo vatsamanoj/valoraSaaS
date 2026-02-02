@@ -13,5 +13,5 @@ public class MongoDbContext
     }
 
     public IMongoCollection<T> GetCollection<T>(string name) => _database.GetCollection<T>(name);
-    public IMongoDatabase Database => _database;
+    public virtual IMongoDatabase Database => _database;
 }

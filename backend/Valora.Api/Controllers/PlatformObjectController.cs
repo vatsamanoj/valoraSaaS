@@ -199,15 +199,15 @@ public class PlatformObjectController : ControllerBase
     }
 
     [HttpGet("{objectCode}/latest")]
-    public async Task<IActionResult> GetLatest(string objectCode, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetLatest(string objectCode, [FromQuery] int? v, CancellationToken cancellationToken)
     {
         var tenantContext = TenantContextFactory.FromHttp(HttpContext);
-        _logger.LogInformation($"[GetLatest] Tenant: {tenantContext.TenantId}, Env: {tenantContext.Environment}, Object: {objectCode}");
+        _logger.LogInformation($"[GetLatest] Tenant: {tenantContext.TenantId}, Env: {tenantContext.Environment}, Object: {objectCode}, Version: {v}");
 
         // --- INJECTION HOOK START ---
         // Ensure schema exists (Seeding)
         // We call GetSchemaAsync which triggers the seeding logic in SchemaCache if the schema is missing.
-        await _schemaProvider.GetSchemaAsync(tenantContext.TenantId, objectCode, cancellationToken);
+        await _schemaProvider.GetSchemaAsync(tenantContext.TenantId, objectCode, cancellationToken, v);
         // --- INJECTION HOOK END ---
 
         var collection = _mongoDb.GetCollection<BsonDocument>("PlatformObjectTemplate");

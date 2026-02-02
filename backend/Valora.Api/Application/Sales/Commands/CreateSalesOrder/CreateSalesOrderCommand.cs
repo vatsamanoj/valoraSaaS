@@ -12,5 +12,6 @@ public record CreateSalesOrderCommand(
     string? ShippingAddress,
     string? BillingAddress,
     List<SalesOrderItemDto> Items,
-    bool AutoPost = false
+    bool AutoPost = false,
+    string? OrderNumber = null
 ) : IRequest<ApiResult>;

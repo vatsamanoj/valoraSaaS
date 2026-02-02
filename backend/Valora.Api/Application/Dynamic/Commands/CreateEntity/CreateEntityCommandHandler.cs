@@ -18,21 +18,24 @@ public class CreateEntityCommandHandler : IRequestHandler<CreateEntityCommand, A
     private readonly ILogger<CreateEntityCommandHandler> _logger;
     private readonly ISchemaProvider _schemaProvider;
     private readonly SchemaValidator _validator;
-    private readonly IMediator _mediator;
+        private readonly IMediator _mediator;
+        private readonly CalculationService _calculationService;
 
-    public CreateEntityCommandHandler(
-        PlatformDbContext dbContext,
-        ILogger<CreateEntityCommandHandler> logger,
-        ISchemaProvider schemaProvider,
-        SchemaValidator validator,
-        IMediator mediator)
-    {
-        _dbContext = dbContext;
-        _logger = logger;
-        _schemaProvider = schemaProvider;
-        _validator = validator;
-        _mediator = mediator;
-    }
+        public CreateEntityCommandHandler(
+            PlatformDbContext dbContext,
+            ILogger<CreateEntityCommandHandler> logger,
+            ISchemaProvider schemaProvider,
+            SchemaValidator validator,
+            IMediator mediator,
+            CalculationService calculationService)
+        {
+            _dbContext = dbContext;
+            _logger = logger;
+            _schemaProvider = schemaProvider;
+            _validator = validator;
+            _mediator = mediator;
+            _calculationService = calculationService;
+        }
 
     public async Task<ApiResult> Handle(CreateEntityCommand request, CancellationToken cancellationToken)
     {
@@ -69,8 +72,18 @@ public class CreateEntityCommandHandler : IRequestHandler<CreateEntityCommand, A
             // return ApiResult.Fail(request.TenantId, request.Module, "create", new ApiError("Validation", string.Join("; ", errors)));
             
             // DEBUG: Allow through for now to unblock, but log warning.
-            _logger.LogWarning("Validation failed but proceeding (Dev Mode): {Errors}", string.Join("; ", errors));
+             _logger.LogWarning("Validation failed but proceeding (Dev Mode): {Errors}", string.Join("; ", errors));
+         }
+ 
+         // --- Server-Side Calculations ---
+        var entityData = JsonSerializer.Deserialize<Dictionary<string, object>>(rawJson);
+        if (entityData != null)
+        {
+            entityData = await _calculationService.ExecuteCalculations(entityData, schema);
+            rawJson = JsonSerializer.Serialize(entityData);
+            jsonNode = JsonNode.Parse(rawJson)?.AsObject();
         }
+
 
         // --- HYBRID WRITE (SQL + EAV) SUPPORT ---
         if (string.Equals(request.Module, "SalesOrder", StringComparison.OrdinalIgnoreCase))

@@ -58,7 +58,7 @@ function Run-TestProject {
         return $false
     }
 
-    Write-Host "  ✓ $TestName passed" -ForegroundColor Green
+    Write-Host "  V $TestName passed" -ForegroundColor Green
     Write-Host ""
     return $true
 }
@@ -87,7 +87,7 @@ function Run-MongoVerification {
         Pop-Location
     }
 
-    Write-Host "  ✓ MongoDB verification passed" -ForegroundColor Green
+    Write-Host "  V MongoDB verification passed" -ForegroundColor Green
     Write-Host ""
     return $true
 }
@@ -123,7 +123,7 @@ function Run-FrontendTests {
         Pop-Location
     }
 
-    Write-Host "  ✓ Frontend tests passed" -ForegroundColor Green
+    Write-Host "  V Frontend tests passed" -ForegroundColor Green
     Write-Host ""
     return $true
 }
@@ -141,7 +141,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Host "  ✓ Build successful" -ForegroundColor Green
+Write-Host "  V Build successful" -ForegroundColor Green
 Write-Host ""
 
 # Run tests based on filters
@@ -239,10 +239,10 @@ Write-Host ""
 Write-Host "=== Test Summary ===" -ForegroundColor Cyan
 
 if ($allPassed) {
-    Write-Host "All tests passed! ✓" -ForegroundColor Green
+    Write-Host "All tests passed! V" -ForegroundColor Green
     exit 0
 }
 else {
-    Write-Host "Some tests failed! ✗" -ForegroundColor Red
+    Write-Host "Some tests failed! X" -ForegroundColor Red
     exit 1
 }

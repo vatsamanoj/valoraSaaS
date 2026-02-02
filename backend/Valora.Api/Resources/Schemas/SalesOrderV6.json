@@ -1,0 +1,70 @@
+{
+  "shouldPost": true,
+  "fields": {
+    "OrderNumber": { "type": "Text", "label": "Order Number", "required": true, "readonly": true, "isSystem": true },
+    "OrderDate": { "type": "Date", "label": "Order Date", "required": true, "defaultValue": "Today", "isSystem": true },
+    "CustomerId": { 
+        "type": "Lookup", 
+        "label": "Customer (GL Account)", 
+        "required": true, 
+        "isSystem": true,
+        "ui": {
+            "type": "lookup",
+            "lookupModule": "GLAccount",
+            "lookupField": "Name",
+            "filter": { "Type": 3 }
+        }
+    },
+    "Currency": { "type": "Text", "label": "Currency", "required": true, "defaultValue": "USD", "isSystem": true },
+    "TotalAmount": { "type": "Money", "label": "Total Amount", "readonly": true, "isSystem": true },
+    "Status": { "type": "Text", "label": "Status", "readonly": true, "isSystem": true },
+    
+    "ShippingAddress": { "type": "Text", "label": "Shipping Address", "multiline": true, "isSystem": true },
+    "BillingAddress": { "type": "Text", "label": "Billing Address", "multiline": true, "isSystem": true },
+
+    "Items": { 
+        "type": "Grid", 
+        "label": "Order Items",
+        "isSystem": true,
+        "required": true,
+        "columns": [
+            { 
+                "key": "MaterialCode", 
+                "label": "Product", 
+                "type": "lookup",
+                "lookupModule": "Material",
+                "lookupField": "MaterialCode",
+                "filter": { },
+                "searchStrategy": "wildcard"
+            },
+            { "key": "Quantity", "label": "Qty", "type": "Number" },
+            { "key": "UnitPrice", "label": "Unit Price", "type": "Money" },
+            { "key": "LineTotal", "label": "Total", "type": "Money", "readonly": true }
+        ]
+    },
+
+    "SpecialInstructions": { "type": "Text", "label": "Special Instructions (Custom)", "required": false },
+    "Priority": { "type": "Text", "label": "Delivery Priority (Custom)", "required": false, "options": ["High", "Medium", "Low"] },
+    "DiscountCode": { "type": "Text", "label": "Discount Code (V2)", "required": false }
+  },
+  "ui": {
+    "listFields": ["OrderNumber", "OrderDate", "CustomerId", "TotalAmount", "Status", "Priority"],
+    "formGroups": [
+        { "title": "Order Header", "fields": ["OrderNumber", "OrderDate", "CustomerId", "Currency", "Status"] },
+        { "title": "Logistics", "fields": ["ShippingAddress", "BillingAddress", "Priority", "SpecialInstructions"] },
+        { "title": "Line Items", "fields": ["Items"] },
+        { "title": "Financials", "fields": ["TotalAmount", "DiscountCode"] }
+    ]
+  },
+  "documentTotals": {
+      "fields": {
+          "subTotal": { "source": "Items", "formula": "SUM(LineTotal)", "label": "Sub-Total" },
+          "taxTotal": { "source": "Items", "formula": "SUM(TaxAmount)", "label": "Tax" },
+          "totalDiscount": { "source": "Items", "formula": "SUM(DiscountAmount)", "label": "Discount" }
+      },
+      "displayConfig": {
+          "layout": "stacked",
+          "position": "bottom"
+      }
+  }
+}
