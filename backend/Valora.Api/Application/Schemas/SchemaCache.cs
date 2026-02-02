@@ -136,29 +136,33 @@ public sealed class SchemaCache : ISchemaProvider
             var schemaFields = schemaDoc["fields"].AsBsonDocument;
             var uiLayout = schemaDoc["ui"].AsBsonDocument;
 
-            updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.fields", schemaFields));
-            updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.ui", uiLayout));
-            updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.isPublished", true));
+            // Create both prod and dev environments
+            foreach (var env in new[] { "prod", "dev" })
+            {
+                updates.Add(updateBuilder.Set($"environments.{env}.screens.{module}.v{v}.fields", schemaFields));
+                updates.Add(updateBuilder.Set($"environments.{env}.screens.{module}.v{v}.ui", uiLayout));
+                updates.Add(updateBuilder.Set($"environments.{env}.screens.{module}.v{v}.isPublished", true));
 
-            if (schemaDoc.Contains("shouldPost"))
-            {
-                updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.shouldPost", schemaDoc["shouldPost"]));
-            }
-            if (schemaDoc.Contains("documentTotals"))
-            {
-                updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.documentTotals", schemaDoc["documentTotals"]));
-            }
-            if (schemaDoc.Contains("calculationRules"))
-            {
-                updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.calculationRules", schemaDoc["calculationRules"]));
-            }
-            if (schemaDoc.Contains("attachmentConfig"))
-            {
-                updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.attachmentConfig", schemaDoc["attachmentConfig"]));
-            }
-            if (schemaDoc.Contains("cloudStorage"))
-            {
-                updates.Add(updateBuilder.Set($"environments.prod.screens.{module}.v{v}.cloudStorage", schemaDoc["cloudStorage"]));
+                if (schemaDoc.Contains("shouldPost"))
+                {
+                    updates.Add(updateBuilder.Set($"environments.{env}.screens.{module}.v{v}.shouldPost", schemaDoc["shouldPost"]));
+                }
+                if (schemaDoc.Contains("documentTotals"))
+                {
+                    updates.Add(updateBuilder.Set($"environments.{env}.screens.{module}.v{v}.documentTotals", schemaDoc["documentTotals"]));
+                }
+                if (schemaDoc.Contains("calculationRules"))
+                {
+                    updates.Add(updateBuilder.Set($"environments.{env}.screens.{module}.v{v}.calculationRules", schemaDoc["calculationRules"]));
+                }
+                if (schemaDoc.Contains("attachmentConfig"))
+                {
+                    updates.Add(updateBuilder.Set($"environments.{env}.screens.{module}.v{v}.attachmentConfig", schemaDoc["attachmentConfig"]));
+                }
+                if (schemaDoc.Contains("cloudStorage"))
+                {
+                    updates.Add(updateBuilder.Set($"environments.{env}.screens.{module}.v{v}.cloudStorage", schemaDoc["cloudStorage"]));
+                }
             }
         }
 

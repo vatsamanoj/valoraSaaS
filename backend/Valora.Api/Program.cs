@@ -104,9 +104,12 @@ using (var scope = app.Services.CreateScope())
         var schemaProvider = scope.ServiceProvider.GetRequiredService<ISchemaProvider>();
         Console.WriteLine("[Program] Seeding SalesOrder schema for LAB_001...");
         await schemaProvider.SeedSchemaAsync("LAB_001", "SalesOrder", CancellationToken.None);
-        
+
         Console.WriteLine("[Program] Seeding SalesOrder schema for LAB003...");
         await schemaProvider.SeedSchemaAsync("LAB003", "SalesOrder", CancellationToken.None);
+
+        Console.WriteLine("[Program] Seeding SalesOrder schema for test-tenant...");
+        await schemaProvider.SeedSchemaAsync("test-tenant", "SalesOrder", CancellationToken.None);
         
         // Force refresh for LAB003 to ensure UI fields are updated
         var cache = scope.ServiceProvider.GetRequiredService<ISchemaProvider>() as Valora.Api.Application.Schemas.SchemaCache;
