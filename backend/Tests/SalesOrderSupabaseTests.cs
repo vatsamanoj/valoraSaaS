@@ -7,6 +7,7 @@ using Dapper;
 using Valora.Api;
 using Valora.Api.Infrastructure.Persistence;
 using Valora.Api.Domain.Entities;
+using Valora.Api.Domain.Entities.Sales;
 using Valora.Api.Application.Sales.Commands.CreateSalesOrder;
 using Xunit;
 using Xunit.Abstractions;
@@ -243,8 +244,8 @@ namespace Valora.Tests
                 null,
                 new List<SalesOrderItemDto>
                 {
-                    new("ITEM001", 10, 100.00m),
-                    new("ITEM002", 5, 50.00m)
+                    new("ITEM001", 10),
+                    new("ITEM002", 5)
                 }
             );
 
@@ -264,7 +265,7 @@ namespace Valora.Tests
 
             // Cleanup
             var savedOrder = await dbContext.SalesOrders
-                .FirstOrDefaultAsync(so => so.OrderNumber == command.OrderNumber);
+                .FirstOrDefaultAsync(so => so.CustomerId == command.CustomerId);
             if (savedOrder != null)
             {
                 dbContext.SalesOrders.Remove(savedOrder);
@@ -288,8 +289,8 @@ namespace Valora.Tests
                 null,
                 new List<SalesOrderItemDto>
                 {
-                    new("ITEM001", 10, 100.00m),
-                    new("ITEM002", 5, 50.00m)
+                    new("ITEM001", 10),
+                    new("ITEM002", 5)
                 }
             )
             {
@@ -313,7 +314,7 @@ namespace Valora.Tests
 
             // Cleanup
             var savedOrder = await dbContext.SalesOrders
-                .FirstOrDefaultAsync(so => so.OrderNumber == command.OrderNumber);
+                .FirstOrDefaultAsync(so => so.CustomerId == command.CustomerId);
             if (savedOrder != null)
             {
                 dbContext.SalesOrders.Remove(savedOrder);
@@ -633,8 +634,6 @@ namespace Valora.Tests
                 TenantId = tenantId,
                 Topic = "valora.test.event",
                 Payload = JsonSerializer.Serialize(new { Test = "data" }),
-                AggregateType = "Test",
-                AggregateId = Guid.NewGuid().ToString(),
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
             };

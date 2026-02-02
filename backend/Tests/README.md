@@ -271,11 +271,31 @@ End-to-end integration tests:
 
 ## Running the Tests
 
-### Run All Tests
+### Quick Start
+
+For quick instructions on running tests, see [`QUICK_START.md`](QUICK_START.md).
+
+For comprehensive testing guide, see [`FUNCTIONAL_TESTS_GUIDE.md`](FUNCTIONAL_TESTS_GUIDE.md).
+
+### Run All Tests (Simple)
+```bash
+cd backend/Tests
+./run-all-tests.sh
+```
+
+Or using dotnet directly:
 ```bash
 cd backend/Tests
 dotnet test
 ```
+
+### Run All Tests with Detailed Reports
+```bash
+cd backend/Tests
+./run-functional-tests.sh
+```
+
+This generates detailed markdown and JSON reports in the `test-reports/` directory.
 
 ### Run Architecture Tests Only
 ```bash
@@ -308,7 +328,47 @@ dotnet test --filter "FullyQualifiedName~CqrsArchitecture"
 
 # Template Config Validation
 dotnet test --filter "FullyQualifiedName~TemplateConfigValidation"
+
+# Data Entry Tests
+dotnet test --filter "FullyQualifiedName~DataEntry"
+
+# CQRS Tests
+dotnet test --filter "FullyQualifiedName~CqrsTests"
+
+# API Tests
+dotnet test --filter "FullyQualifiedName~ApiTests"
+
+# Integration Tests
+dotnet test --filter "FullyQualifiedName~IntegrationTests"
+
+# Smart Projection Tests
+dotnet test --filter "FullyQualifiedName~SmartProjectionTests"
+
+# Kafka Tests
+dotnet test --filter "FullyQualifiedName~KafkaTests"
+
+# MongoDB Integration Tests
+dotnet test --filter "FullyQualifiedName~MongoIntegrationTests"
+
+# Supabase Tests
+dotnet test --filter "FullyQualifiedName~SupabaseTests"
 ```
+
+### Test Runner Scripts
+
+| Script | Description |
+|--------|-------------|
+| [`run-all-tests.sh`](run-all-tests.sh) | Simple test runner - runs all tests |
+| [`run-functional-tests.sh`](run-functional-tests.sh) | Advanced runner with detailed reports |
+| [`RunFunctionalTests.ps1`](RunFunctionalTests.ps1) | PowerShell version with reports |
+
+### Documentation
+
+| Document | Description |
+|----------|-------------|
+| [`QUICK_START.md`](QUICK_START.md) | Quick reference for running tests |
+| [`FUNCTIONAL_TESTS_GUIDE.md`](FUNCTIONAL_TESTS_GUIDE.md) | Comprehensive testing guide |
+| [`README.md`](README.md) | This file - test suite overview |
 
 ## Test Categories
 
