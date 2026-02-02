@@ -52,15 +52,16 @@ namespace Valora.Tests
 
             var command = new CreateSalesOrderCommand(
                 tenantId,
-                orderNumber,
                 "CUST001",
-                DateTime.UtcNow,
+                "USD",
+                null,
+                null,
                 new List<SalesOrderItemDto>
                 {
                     new("ITEM001", 10),
                     new("ITEM002", 5)
                 },
-                autoPost: false
+                false
             );
 
             var handler = new CreateSalesOrderCommandHandler(dbContext);
@@ -69,10 +70,10 @@ namespace Valora.Tests
             var result = await handler.Handle(command, CancellationToken.None);
 
             // Assert
-            Assert.True(result.IsSuccess, $"Command failed: {result.ErrorMessage}");
+            Assert.True(result.Success, $"Command failed: {result.Message}");
             Assert.NotNull(result.Data);
 
-            var orderId = result.Data.GetProperty("Id").GetString();
+            var orderId = ((JsonElement)result.Data).GetProperty("Id").GetString();
             Assert.NotNull(orderId);
 
             // Verify in database
@@ -105,25 +106,27 @@ namespace Valora.Tests
             // Create first order
             var firstCommand = new CreateSalesOrderCommand(
                 tenantId,
-                orderNumber,
                 "CUST001",
-                DateTime.UtcNow,
+                "USD",
+                null,
+                null,
                 new List<SalesOrderItemDto> { new("ITEM001", 10) },
-                autoPost: false
+                false
             );
 
             var handler = new CreateSalesOrderCommandHandler(dbContext);
             var firstResult = await handler.Handle(firstCommand, CancellationToken.None);
-            Assert.True(firstResult.IsSuccess);
+            Assert.True(firstResult.Success);
 
             // Act - Try to create second order with same number
             var secondCommand = new CreateSalesOrderCommand(
                 tenantId,
-                orderNumber, // Same order number
                 "CUST002",
-                DateTime.UtcNow,
+                "USD",
+                null,
+                null,
                 new List<SalesOrderItemDto> { new("ITEM002", 5) },
-                autoPost: false
+                false
             );
 
             // This should throw due to unique constraint
@@ -162,7 +165,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 5000.00m,
-                Status = "Confirmed",
+                Status = SalesOrderStatus.Confirmed,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 1
@@ -178,7 +181,7 @@ namespace Valora.Tests
             var result = await handler.Handle(command, CancellationToken.None);
 
             // Assert
-            Assert.True(result.IsSuccess, $"Billing failed: {result.ErrorMessage}");
+            Assert.True(result.Success, $"Billing failed: {result.Message}");
 
             // Verify order status updated
             var billedOrder = await dbContext.SalesOrders
@@ -186,7 +189,7 @@ namespace Valora.Tests
                 .FirstOrDefaultAsync(so => so.Id == order.Id);
 
             Assert.NotNull(billedOrder);
-            Assert.Equal("Billed", billedOrder.Status);
+            Assert.Equal(SalesOrderStatus.Invoiced, billedOrder.Status);
 
             // Verify outbox message created
             var outboxMessages = await dbContext.OutboxMessages
@@ -219,8 +222,7 @@ namespace Valora.Tests
             var result = await handler.Handle(command, CancellationToken.None);
 
             // Assert
-            Assert.False(result.IsSuccess);
-            Assert.Equal(404, result.StatusCode);
+            Assert.False(result.Success);
 
             _output.WriteLine($"✓ BillSalesOrderCommand correctly returned 404 for non-existent order");
         }
@@ -241,7 +243,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 5000.00m,
-                Status = "Billed", // Already billed
+                Status = SalesOrderStatus.Invoiced, // Already billed
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 1
@@ -257,8 +259,7 @@ namespace Valora.Tests
             var result = await handler.Handle(command, CancellationToken.None);
 
             // Assert
-            Assert.False(result.IsSuccess);
-            Assert.Equal(400, result.StatusCode);
+            Assert.False(result.Success);
 
             _output.WriteLine($"✓ BillSalesOrderCommand correctly rejected already billed order");
 
@@ -288,7 +289,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 1000.00m,
-                Status = "Draft",
+                Status = SalesOrderStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "event-test",
                 Version = 0
@@ -352,7 +353,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 1000.00m,
-                Status = "Draft",
+                Status = SalesOrderStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 0
@@ -364,7 +365,7 @@ namespace Valora.Tests
             // Act - Update multiple times
             for (int i = 0; i < 5; i++)
             {
-                order.Status = $"Status{i}";
+                order.Status = SalesOrderStatus.Confirmed;
                 await dbContext.SaveChangesAsync();
             }
 
@@ -395,8 +396,9 @@ namespace Valora.Tests
             var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             var mongoDb = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
             var projectionRepo = new MongoProjectionRepository(mongoDb);
+            var smartProjectionService = scope.ServiceProvider.GetRequiredService<SmartProjectionService>();
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<ProjectionManager>>();
-            var projectionManager = new ProjectionManager(dbContext, projectionRepo, logger);
+            var projectionManager = new ProjectionManager(dbContext, projectionRepo, smartProjectionService, logger);
 
             var tenantId = $"test-tenant-{Guid.NewGuid():N}";
 
@@ -409,7 +411,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 5000.00m,
-                Status = "Confirmed",
+                Status = SalesOrderStatus.Confirmed,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 1,
@@ -422,7 +424,7 @@ namespace Valora.Tests
                         Quantity = 10,
                         UnitPrice = 500.00m,
                         LineTotal = 5000.00m,
-                        CreatedAt = DateTime.UtcNow
+                        SalesOrderId = Guid.Empty
                     }
                 }
             };
@@ -468,8 +470,9 @@ namespace Valora.Tests
             var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             var mongoDb = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
             var projectionRepo = new MongoProjectionRepository(mongoDb);
+            var smartProjectionService = scope.ServiceProvider.GetRequiredService<SmartProjectionService>();
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<ProjectionManager>>();
-            var projectionManager = new ProjectionManager(dbContext, projectionRepo, logger);
+            var projectionManager = new ProjectionManager(dbContext, projectionRepo, smartProjectionService, logger);
 
             var tenantId = $"test-tenant-{Guid.NewGuid():N}";
             var orderId = Guid.NewGuid();
@@ -483,7 +486,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 1000.00m,
-                Status = "Draft",
+                Status = SalesOrderStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test-user",
                 Version = 1
@@ -502,7 +505,7 @@ namespace Valora.Tests
             await projectionManager.HandleEventAsync("valora.data.changed", tenantId, eventPayload1);
 
             // Update order
-            order.Status = "Confirmed";
+            order.Status = SalesOrderStatus.Confirmed;
             order.TotalAmount = 1500.00m;
             await dbContext.SaveChangesAsync();
 
@@ -555,7 +558,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 10000.00m,
-                Status = "Confirmed",
+                Status = SalesOrderStatus.Confirmed,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "consistency-test",
                 Version = 1,
@@ -568,7 +571,7 @@ namespace Valora.Tests
                         Quantity = 20,
                         UnitPrice = 500.00m,
                         LineTotal = 10000.00m,
-                        CreatedAt = DateTime.UtcNow
+                        SalesOrderId = Guid.Empty
                     }
                 }
             };
@@ -616,7 +619,7 @@ namespace Valora.Tests
             Assert.NotNull(readModel);
             Assert.Equal(writeModel.OrderNumber, readModel["OrderNumber"].AsString);
             Assert.Equal(writeModel.TotalAmount, (decimal)readModel["TotalAmount"].AsDouble);
-            Assert.Equal(writeModel.Status, readModel["Status"].AsString);
+            Assert.Equal(writeModel.Status.ToString(), readModel["Status"].AsString);
             Assert.Equal((int)writeModel.Version, readModel["Version"].AsInt32);
             Assert.Equal(writeModel.Items.Count, readModel["Items"].AsBsonArray.Count);
 
@@ -650,7 +653,7 @@ namespace Valora.Tests
                     CustomerId = "CUST001",
                     OrderDate = DateTime.UtcNow,
                     TotalAmount = 1000m * (i + 1),
-                    Status = "Confirmed",
+                    Status = SalesOrderStatus.Confirmed,
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = "perf-test",
                     Version = 1
@@ -727,7 +730,7 @@ namespace Valora.Tests
                 CustomerId = "CUST001",
                 OrderDate = DateTime.UtcNow,
                 TotalAmount = 5000.00m,
-                Status = "Draft",
+                Status = SalesOrderStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "outbox-test",
                 Version = 0

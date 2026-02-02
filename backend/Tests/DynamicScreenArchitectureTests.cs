@@ -86,7 +86,7 @@ namespace Valora.Tests.Architecture
             Assert.False(string.IsNullOrEmpty(schema.Module), "Module is required");
             Assert.True(schema.Version > 0, "Version must be greater than 0");
             Assert.False(string.IsNullOrEmpty(schema.ObjectType), "ObjectType is required");
-            Assert.NotNull(schema.Fields, "Fields dictionary is required");
+            Assert.NotNull(schema.Fields);
         }
 
         [Theory]
@@ -124,7 +124,7 @@ namespace Valora.Tests.Architecture
             foreach (var field in schema.Fields)
             {
                 Assert.False(string.IsNullOrEmpty(field.Key), "Field name cannot be empty");
-                Assert.NotNull(field.Value, $"Field rule for {field.Key} cannot be null");
+                Assert.NotNull(field.Value);
                 
                 // Storage must be valid
                 var validStorage = new[] { "Core", "Extension" };
@@ -369,9 +369,9 @@ namespace Valora.Tests.Architecture
                 },
                 GlobalSettings = new GlobalStorageSettings
                 {
-                    EncryptionAtRest = true,
-                    VersioningEnabled = true,
-                    RetentionDays = 2555 // 7 years
+                    VirusScanEnabled = true,
+                    GenerateThumbnails = true,
+                    MaxFileSizeMB = 100
                 }
             };
 
