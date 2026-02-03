@@ -66,6 +66,35 @@ public class CalculationService
                 entityData[targetField] = evaluationResult;
             }
         }
+    
+        private object ConvertToNumeric(object value)
+        {
+            if (value is decimal || value is double || value is float || value is int || value is long)
+            {
+                return value;
+            }
+    
+            var str = value?.ToString();
+            if (string.IsNullOrEmpty(str))
+            {
+                return 0m; // Default to 0 for calculations
+            }
+    
+            // Try to parse as decimal
+            if (decimal.TryParse(str, out var decimalValue))
+            {
+                return decimalValue;
+            }
+    
+            // Try to parse as double
+            if (double.TryParse(str, out var doubleValue))
+            {
+                return doubleValue;
+            }
+    
+            // If can't parse, return 0
+            return 0m;
+        }
     }
 
 
@@ -125,7 +154,9 @@ public class CalculationService
                 var fieldName = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
                 if (!string.IsNullOrEmpty(fieldName) && data.TryGetValue(fieldName, out var value))
                 {
-                    parameters[fieldName] = value;
+                    // Convert value to numeric type if possible for NCalc
+                    var convertedValue = ConvertToNumeric(value);
+                    parameters[fieldName] = convertedValue;
                 }
             }
 

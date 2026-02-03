@@ -113,9 +113,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ schema, onSubmit, isLoading =
 
   // ===== Server-Side Calculation Trigger =====
   const triggerServerSideCalculation = useCallback(async (changedField?: string) => {
-    // Only trigger for V1 schemas with complex calculations enabled
+    // Only trigger for V1 schemas with server-side calculations enabled
     if (schema.version !== SCHEMA_VERSIONS.V1) return;
-    if (!schema.calculationRules?.complexCalculation) return;
+    const hasServerSideCalcs = schema.calculationRules?.serverSide?.lineItemCalculations?.length ||
+                               schema.calculationRules?.serverSide?.documentCalculations?.length ||
+                               schema.calculationRules?.complexCalculation;
+    if (!hasServerSideCalcs) return;
     
     setIsCalculating(true);
     try {
