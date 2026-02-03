@@ -118,7 +118,7 @@ public class CalculationService
 
             // Replace {field} syntax with regular variable names for NCalc
             var ncalcFormula = Regex.Replace(formula, @"\{(\w+)\}", "$1");
-            var expression = new Expression(ncalcFormula);
+            var expression = new NCalc.Expression(ncalcFormula);
             var parameters = new Dictionary<string, object>();
 
             var matches = Regex.Matches(formula, @"{(\w+)}");

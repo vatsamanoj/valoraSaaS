@@ -1,7 +1,6 @@
 using Lab360.Application.Common.Results;
 using MediatR;
 using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using Valora.Api.Infrastructure.Persistence;
 
@@ -50,11 +49,8 @@ public class GetJournalEntriesQueryHandler : IRequestHandler<GetJournalEntriesQu
             .ToListAsync(cancellationToken);
 
         // Generate Debug Query Info
-        var registry = BsonSerializer.SerializerRegistry;
-        var serializer = registry.GetSerializer<BsonDocument>();
-        
-        var renderedFilter = filter.Render(serializer, registry);
-        var renderedSort = sort.Render(serializer, registry);
+        var renderedFilter = filter.ToJson();
+        var renderedSort = sort.ToJson();
 
         var debugParams = new Dictionary<string, object>();
         if (!string.IsNullOrEmpty(request.DocumentNumber)) 
