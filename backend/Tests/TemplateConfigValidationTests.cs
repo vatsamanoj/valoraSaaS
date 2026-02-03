@@ -112,9 +112,8 @@ namespace Valora.Tests.Architecture
             Assert.NotNull(schema.CalculationRules.ClientSide);
         }
 
-        [Theory]
-        [MemberData(nameof(AllScreenTypes))]
-        public void CalculationRules_LineItemCalculation_MustHaveTargetField(string module, string objectType)
+        [Fact]
+        public void CalculationRules_LineItemCalculation_MustHaveTargetField()
         {
             // Arrange
             var calculation = new LineItemCalculation
@@ -131,9 +130,8 @@ namespace Valora.Tests.Architecture
             Assert.NotEmpty(calculation.DependentFields);
         }
 
-        [Theory]
-        [MemberData(nameof(AllScreenTypes))]
-        public void CalculationRules_DocumentCalculation_MustHaveTargetField(string module, string objectType)
+        [Fact]
+        public void CalculationRules_DocumentCalculation_MustHaveTargetField()
         {
             // Arrange
             var calculation = new DocumentCalculation
@@ -159,9 +157,8 @@ namespace Valora.Tests.Architecture
             Assert.Contains(trigger, validTriggers);
         }
 
-        [Theory]
-        [MemberData(nameof(AllScreenTypes))]
-        public void CalculationRules_ComplexCalculation_MustHaveId(string module, string objectType)
+        [Fact]
+        public void CalculationRules_ComplexCalculation_MustHaveId()
         {
             // Arrange
             var complexCalc = new ComplexCalculation
@@ -189,9 +186,8 @@ namespace Valora.Tests.Architecture
             Assert.Contains(scope, validScopes);
         }
 
-        [Theory]
-        [MemberData(nameof(AllScreenTypes))]
-        public void CalculationRules_ComplexCalculation_CanHaveParameters(string module, string objectType)
+        [Fact]
+        public void CalculationRules_ComplexCalculation_CanHaveParameters()
         {
             // Arrange
             var complexCalc = new ComplexCalculation
@@ -215,9 +211,8 @@ namespace Valora.Tests.Architecture
             });
         }
 
-        [Theory]
-        [MemberData(nameof(AllScreenTypes))]
-        public void CalculationRules_ComplexCalculation_CanHaveExternalDataSources(string module, string objectType)
+        [Fact]
+        public void CalculationRules_ComplexCalculation_CanHaveExternalDataSources()
         {
             // Arrange
             var complexCalc = new ComplexCalculation
