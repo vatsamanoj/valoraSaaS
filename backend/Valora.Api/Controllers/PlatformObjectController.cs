@@ -1,6 +1,7 @@
 using Lab360.Application.Common.Results;
 using Lab360.Application.Common.Security;
 using Valora.Api.Application.Schemas;
+using Valora.Api.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -16,12 +17,18 @@ public class PlatformObjectController : ControllerBase
     private readonly MongoDbContext _mongoDb;
     private readonly ILogger<PlatformObjectController> _logger;
     private readonly ISchemaProvider _schemaProvider;
+    private readonly CalculationService _calculationService;
 
-    public PlatformObjectController(MongoDbContext mongoDb, ILogger<PlatformObjectController> logger, ISchemaProvider schemaProvider)
+    public PlatformObjectController(
+        MongoDbContext mongoDb,
+        ILogger<PlatformObjectController> logger,
+        ISchemaProvider schemaProvider,
+        CalculationService calculationService)
     {
         _mongoDb = mongoDb;
         _logger = logger;
         _schemaProvider = schemaProvider;
+        _calculationService = calculationService;
     }
 
     private FilterDefinition<BsonDocument> GetTenantFilter(string tenantId)
@@ -465,6 +472,105 @@ public class PlatformObjectController : ControllerBase
         var result = versionDoc.ToDictionary();
 
         return Ok(ApiResult.Ok(tenantContext.TenantId, objectCode, "published", result));
+    }
+
+    [HttpPost("calculate")]
+    public async Task<IActionResult> Calculate([FromBody] JsonElement body, CancellationToken cancellationToken)
+    {
+        var tenantContext = TenantContextFactory.FromHttp(HttpContext);
+
+        // Extract module and data from request
+        if (!body.TryGetProperty("module", out var moduleProp) || !body.TryGetProperty("data", out var dataProp))
+        {
+            return BadRequest(ApiResult.Fail(tenantContext.TenantId, "unknown", "calculate", new ApiError("Validation", "Module and data are required.")));
+        }
+
+        var module = moduleProp.GetString();
+        if (string.IsNullOrEmpty(module))
+        {
+            return BadRequest(ApiResult.Fail(tenantContext.TenantId, "unknown", "calculate", new ApiError("Validation", "Module is required.")));
+        }
+
+        // Get schema
+        var schema = await _schemaProvider.GetSchemaAsync(tenantContext.TenantId, module, cancellationToken);
+        if (schema == null)
+        {
+            return NotFound(ApiResult.Fail(tenantContext.TenantId, module, "calculate", new ApiError("NotFound", $"Schema not found for module '{module}'")));
+        }
+
+        // Convert JsonElement to Dictionary
+        var entityData = JsonSerializer.Deserialize<Dictionary<string, object>>(dataProp.GetRawText());
+        if (entityData == null)
+        {
+            return BadRequest(ApiResult.Fail(tenantContext.TenantId, module, "calculate", new ApiError("Validation", "Invalid data format.")));
+        }
+
+        // Execute calculations
+        var result = await _calculationService.ExecuteCalculations(entityData, schema);
+
+        return Ok(ApiResult.Ok(tenantContext.TenantId, module, "calculate", result));
+    }
+
+    [HttpPost("calculate-totals")]
+    public async Task<IActionResult> CalculateTotals([FromBody] JsonElement body, CancellationToken cancellationToken)
+    {
+        var tenantContext = TenantContextFactory.FromHttp(HttpContext);
+
+        // Extract module and data from request
+        if (!body.TryGetProperty("module", out var moduleProp) || !body.TryGetProperty("data", out var dataProp))
+        {
+            return BadRequest(ApiResult.Fail(tenantContext.TenantId, "unknown", "calculate-totals", new ApiError("Validation", "Module and data are required.")));
+        }
+
+        var module = moduleProp.GetString();
+        if (string.IsNullOrEmpty(module))
+        {
+            return BadRequest(ApiResult.Fail(tenantContext.TenantId, "unknown", "calculate-totals", new ApiError("Validation", "Module is required.")));
+        }
+
+        // Get schema
+        var schema = await _schemaProvider.GetSchemaAsync(tenantContext.TenantId, module, cancellationToken);
+        if (schema == null)
+        {
+            return NotFound(ApiResult.Fail(tenantContext.TenantId, module, "calculate-totals", new ApiError("NotFound", $"Schema not found for module '{module}'")));
+        }
+
+        // Convert JsonElement to Dictionary
+        var entityData = JsonSerializer.Deserialize<Dictionary<string, object>>(dataProp.GetRawText());
+        if (entityData == null)
+        {
+            return BadRequest(ApiResult.Fail(tenantContext.TenantId, module, "calculate-totals", new ApiError("Validation", "Invalid data format.")));
+        }
+
+        // Execute calculations
+        var result = await _calculationService.ExecuteCalculations(entityData, schema);
+
+        return Ok(ApiResult.Ok(tenantContext.TenantId, module, "calculate-totals", result));
+    }
+
+    [HttpPost("{objectCode}/calculate")]
+    public async Task<IActionResult> CalculateObject(string objectCode, [FromBody] JsonElement body, CancellationToken cancellationToken)
+    {
+        var tenantContext = TenantContextFactory.FromHttp(HttpContext);
+
+        // Get schema
+        var schema = await _schemaProvider.GetSchemaAsync(tenantContext.TenantId, objectCode, cancellationToken);
+        if (schema == null)
+        {
+            return NotFound(ApiResult.Fail(tenantContext.TenantId, objectCode, "calculate", new ApiError("NotFound", $"Schema not found for module '{objectCode}'")));
+        }
+
+        // Convert JsonElement to Dictionary
+        var entityData = JsonSerializer.Deserialize<Dictionary<string, object>>(body.GetRawText());
+        if (entityData == null)
+        {
+            return BadRequest(ApiResult.Fail(tenantContext.TenantId, objectCode, "calculate", new ApiError("Validation", "Invalid data format.")));
+        }
+
+        // Execute calculations
+        var result = await _calculationService.ExecuteCalculations(entityData, schema);
+
+        return Ok(ApiResult.Ok(tenantContext.TenantId, objectCode, "calculate", result));
     }
 
     [HttpPost("{objectCode}/draft")]

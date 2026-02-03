@@ -94,25 +94,22 @@ public class CalculationService
     {
         try
         {
-            // Handle SUM aggregation first
-            if (formula.StartsWith("SUM("))
+            // Handle SUM aggregation first - support both SUM(Items.Field) and SUM({Items.Field})
+            var sumMatch = Regex.Match(formula, @"SUM\((?:\{)?Items\.(\w+)(?:\})?\)");
+            if (sumMatch.Success)
             {
-                var match = Regex.Match(formula, @"SUM\({Items\.(\w+)}\)");
-                if (match.Success)
+                var fieldToSum = sumMatch.Groups[1].Value;
+                if (data.TryGetValue("Items", out var items) && items is List<Dictionary<string, object>> lineItems)
                 {
-                    var fieldToSum = match.Groups[1].Value;
-                    if (data.TryGetValue("Items", out var items) && items is List<Dictionary<string, object>> lineItems)
+                    decimal sum = 0;
+                    foreach (var lineItem in lineItems)
                     {
-                        decimal sum = 0;
-                        foreach (var lineItem in lineItems)
+                        if (lineItem.TryGetValue(fieldToSum, out var value) && decimal.TryParse(value?.ToString(), out var decimalValue))
                         {
-                            if (lineItem.TryGetValue(fieldToSum, out var value) && decimal.TryParse(value.ToString(), out var decimalValue))
-                            {
-                                sum += decimalValue;
-                            }
+                            sum += decimalValue;
                         }
-                        return sum;
                     }
+                    return sum;
                 }
             }
 
@@ -121,11 +118,12 @@ public class CalculationService
             var expression = new NCalc.Expression(ncalcFormula);
             var parameters = new Dictionary<string, object>();
 
-            var matches = Regex.Matches(formula, @"{(\w+)}");
-            foreach (Match match in matches)
+            // Extract parameters from both {field} and direct field references
+            var fieldMatches = Regex.Matches(formula, @"(?:\{(\w+)\}|(\w+)(?=\s*[\+\-\*\/=<>]|$))");
+            foreach (Match match in fieldMatches)
             {
-                var fieldName = match.Groups[1].Value;
-                if (data.TryGetValue(fieldName, out var value))
+                var fieldName = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
+                if (!string.IsNullOrEmpty(fieldName) && data.TryGetValue(fieldName, out var value))
                 {
                     parameters[fieldName] = value;
                 }
