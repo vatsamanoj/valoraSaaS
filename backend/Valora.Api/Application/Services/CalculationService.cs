@@ -120,6 +120,35 @@ public class CalculationService
             {
                 if (name.ToLower() == "if")
                 {
+    private object ConvertToNumeric(object value)
+    {
+        if (value is decimal || value is double || value is float || value is int || value is long)
+        {
+            return value;
+        }
+    
+        var str = value?.ToString();
+        if (string.IsNullOrEmpty(str))
+        {
+            return 0m; // Default to 0 for calculations
+        }
+    
+        // Try to parse as decimal
+        if (decimal.TryParse(str, out var decimalValue))
+        {
+            return decimalValue;
+        }
+    
+        // Try to parse as double
+        if (double.TryParse(str, out var doubleValue))
+        {
+            return doubleValue;
+        }
+    
+        // If cannot parse, return 0
+        return 0m;
+    }
+}
                     args.Result = (bool)args.Parameters[0].Evaluate() ? args.Parameters[1].Evaluate() : args.Parameters[2].Evaluate();
                 }
             };
@@ -131,14 +160,9 @@ public class CalculationService
             {
                 if (data.TryGetValue(paramName, out var value))
                 {
-                    if (decimal.TryParse(value.ToString(), out var decimalValue))
-                    {
-                        expression.Parameters[paramName] = decimalValue;
-                    }
-                    else
-                    {
-                        expression.Parameters[paramName] = value;
-                    }
+                    // Convert value to numeric type if possible for NCalc
+                    var convertedValue = ConvertToNumeric(value);
+                    expression.Parameters[paramName] = convertedValue;
                 }
             }
 
