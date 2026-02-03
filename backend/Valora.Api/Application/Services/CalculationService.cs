@@ -94,8 +94,8 @@ public class CalculationService
     {
         try
         {
-            // Handle SUM aggregation first - support both SUM(Items.Field) and SUM({Items.Field})
-            var sumMatch = Regex.Match(formula, @"SUM\((?:\{)?Items\.(\w+)(?:\})?\)");
+            // Handle SUM aggregation first
+            var sumMatch = Regex.Match(formula, @"SUM\({Items\.(\w+)}\)");
             if (sumMatch.Success)
             {
                 var fieldToSum = sumMatch.Groups[1].Value;
@@ -104,7 +104,7 @@ public class CalculationService
                     decimal sum = 0;
                     foreach (var lineItem in lineItems)
                     {
-                        if (lineItem.TryGetValue(fieldToSum, out var value) && decimal.TryParse(value?.ToString(), out var decimalValue))
+                        if (lineItem.TryGetValue(fieldToSum, out var value) && decimal.TryParse(value.ToString(), out var decimalValue))
                         {
                             sum += decimalValue;
                         }
@@ -113,28 +113,46 @@ public class CalculationService
                 }
             }
 
-            // Replace {field} syntax with regular variable names for NCalc
             var ncalcFormula = Regex.Replace(formula, @"\{(\w+)\}", "$1");
             var expression = new NCalc.Expression(ncalcFormula);
-            var parameters = new Dictionary<string, object>();
-
-            // Extract parameters from both {field} and direct field references
-            var fieldMatches = Regex.Matches(formula, @"(?:\{(\w+)\}|(\w+)(?=\s*[\+\-\*\/=<>]|$))");
-            foreach (Match match in fieldMatches)
+            
+            expression.EvaluateFunction += (name, args) =>
             {
-                var fieldName = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
-                if (!string.IsNullOrEmpty(fieldName) && data.TryGetValue(fieldName, out var value))
+                if (name.ToLower() == "if")
                 {
-                    parameters[fieldName] = value;
+                    args.Result = (bool)args.Parameters[0].Evaluate() ? args.Parameters[1].Evaluate() : args.Parameters[2].Evaluate();
+                }
+            };
+            
+            // Let NCalc parse the expression to identify parameters
+            expression.Evaluate();
+            
+            foreach (var paramName in expression.Parameters.Keys)
+            {
+                if (data.TryGetValue(paramName, out var value))
+                {
+                    if (decimal.TryParse(value.ToString(), out var decimalValue))
+                    {
+                        expression.Parameters[paramName] = decimalValue;
+                    }
+                    else
+                    {
+                        expression.Parameters[paramName] = value;
+                    }
                 }
             }
 
-            expression.Parameters = parameters;
-            return await Task.Run(() => expression.Evaluate());
+            Console.WriteLine($"Evaluating formula: {ncalcFormula}");
+            foreach(var p in expression.Parameters)
+            {
+                Console.WriteLine($"Parameter: {p.Key}, Value: {p.Value}");
+            }
+            var result = await Task.Run(() => expression.Evaluate());
+            Console.WriteLine($"Formula result: {result}");
+            return result;
         }
         catch (Exception ex)
         {
-            // Log the error
             Console.WriteLine($"Error evaluating formula: {formula}. Error: {ex.Message}");
             return null;
         }
